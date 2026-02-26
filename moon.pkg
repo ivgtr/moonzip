@@ -9,4 +9,5 @@ import {
   "ivgtr/moonzip/internal/zlib",
   "ivgtr/moonzip/internal/zip",
   "ivgtr/moonzip/internal/stream",
+  "ivgtr/moonzip/internal/utf8",
 }
