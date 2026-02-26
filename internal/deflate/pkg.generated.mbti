@@ -1,7 +1,22 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "ivgtr/moonzip/internal/deflate"
 
+import {
+  "ivgtr/moonzip/internal/types",
+}
+
 // Values
+pub fn deflate_sync(FixedArray[Byte], opts? : @types.DeflateOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn dopt(@types.DeflateOptions) -> FixedArray[Int]
+
+pub fn inflate_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn inflt(FixedArray[Byte], Int) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn wblk(FixedArray[Byte], Int, FixedArray[Byte], Int, Int, Bool) -> Int
+
+pub fn wfblk(FixedArray[Byte], Int, FixedArray[Byte], Int, Int, Bool) -> Int
 
 // Errors
 
