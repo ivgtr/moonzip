@@ -2,10 +2,70 @@
 package "ivgtr/moonzip/internal/huffman"
 
 // Values
+pub fn clen(FixedArray[Int], FixedArray[Int]) -> Int
+
+pub let clim : FixedArray[Int]
+
+pub let fclim : FixedArray[Int]
+
+pub let fd : FixedArray[Int]
+
+pub let fdeb : FixedArray[Int]
+
+pub let fdm : FixedArray[Int]
+
+pub let fdrm : FixedArray[Int]
+
+pub let fdt : FixedArray[Int]
+
+pub let fl : FixedArray[Int]
+
+pub let fleb : FixedArray[Int]
+
+pub let flm : FixedArray[Int]
+
+pub let flrm : FixedArray[Int]
+
+pub let flt : FixedArray[Int]
+
+pub fn freb(FixedArray[Int], Int) -> FrebResult
+
+pub fn h_map(FixedArray[Int], Int, HMapDirection) -> FixedArray[Int]
+
+pub fn h_tree(FixedArray[Int], Int) -> HTreeResult
+
+pub fn lc(FixedArray[Int]) -> LcResult
+
+pub fn max_bits(FixedArray[Int]) -> Int
+
+pub let rev15 : FixedArray[Int]
+
+pub let revfd : FixedArray[Int]
+
+pub let revfl : FixedArray[Int]
 
 // Errors
 
 // Types and methods
+pub(all) struct FrebResult {
+  b : FixedArray[Int]
+  r : FixedArray[Int]
+}
+
+pub(all) enum HMapDirection {
+  Forward
+  Reverse
+}
+
+pub(all) struct HTreeResult {
+  t : FixedArray[Int]
+  l : Int
+}
+
+pub(all) struct LcResult {
+  c : FixedArray[Int]
+  n : Int
+}
 
 // Type aliases
 
