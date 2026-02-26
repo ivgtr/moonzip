@@ -1,0 +1,102 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "ivgtr/moonzip/internal/types"
+
+// Values
+
+// Errors
+pub(all) suberror FlateError {
+  FlateError(FlateErrorCode)
+}
+
+// Types and methods
+pub(all) struct DeflateOptions {
+  level : Int
+  mem : Int
+  dictionary : FixedArray[Byte]?
+}
+pub fn DeflateOptions::default() -> Self
+pub impl Show for DeflateOptions
+
+pub(all) enum FlateErrorCode {
+  UnexpectedEOF
+  InvalidBlockType
+  InvalidLengthLiteral
+  InvalidDistance
+  StreamFinished
+  NoStreamHandler
+  InvalidHeader
+  NoCallback
+  InvalidUTF8
+  ExtraFieldTooLong
+  InvalidDate
+  FilenameTooLong
+  StreamFinishing
+  InvalidZipData
+  UnknownCompressionMethod
+}
+pub fn FlateErrorCode::code(Self) -> Int
+pub impl Eq for FlateErrorCode
+pub impl Show for FlateErrorCode
+
+pub(all) struct GzipOptions {
+  level : Int
+  mem : Int
+  mtime : Int?
+  filename : String?
+  comment : String?
+  extra : FixedArray[Byte]?
+}
+pub fn GzipOptions::default() -> Self
+pub impl Show for GzipOptions
+
+pub(all) struct InflateOptions {
+  size : Int?
+  dictionary : FixedArray[Byte]?
+}
+pub fn InflateOptions::default() -> Self
+pub impl Show for InflateOptions
+
+pub(all) struct UnzipFileInfo {
+  name : String
+  size : Int
+  original_size : Int
+  compression : Int
+}
+pub impl Show for UnzipFileInfo
+
+pub(all) struct ZipAttributes {
+  os : Int?
+  attrs : Int?
+  comment : String?
+  extra : Map[Int, FixedArray[Byte]]?
+}
+pub impl Show for ZipAttributes
+
+pub(all) struct ZipEntryOptions {
+  level : Int
+  mtime : Int?
+  attrs : ZipAttributes?
+}
+pub fn ZipEntryOptions::default() -> Self
+pub impl Show for ZipEntryOptions
+
+pub(all) struct ZipOptions {
+  level : Int
+  mtime : Int?
+  comment : String?
+}
+pub fn ZipOptions::default() -> Self
+pub impl Show for ZipOptions
+
+pub(all) struct ZlibOptions {
+  level : Int
+  mem : Int
+  dictionary : FixedArray[Byte]?
+}
+pub fn ZlibOptions::default() -> Self
+pub impl Show for ZlibOptions
+
+// Type aliases
+
+// Traits
+
