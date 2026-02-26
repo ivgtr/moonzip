@@ -8,4 +8,5 @@ import {
   "ivgtr/moonzip/internal/gzip",
   "ivgtr/moonzip/internal/zlib",
   "ivgtr/moonzip/internal/zip",
+  "ivgtr/moonzip/internal/stream",
 }
