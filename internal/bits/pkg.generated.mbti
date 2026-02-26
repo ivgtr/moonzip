@@ -2,6 +2,25 @@
 package "ivgtr/moonzip/internal/bits"
 
 // Values
+pub fn b2(FixedArray[Byte], Int) -> Int
+
+pub fn b4(FixedArray[Byte], Int) -> Int
+
+pub fn b8(FixedArray[Byte], Int) -> Int64
+
+pub fn bits(FixedArray[Byte], Int, Int) -> Int
+
+pub fn bits16(FixedArray[Byte], Int, Int) -> Int
+
+pub fn shft(Int) -> Int
+
+pub fn wbits(FixedArray[Byte], Int, Int, Int) -> Unit
+
+pub fn wbits16(FixedArray[Byte], Int, Int, Int) -> Unit
+
+pub fn wbytes2(FixedArray[Byte], Int, Int) -> Unit
+
+pub fn wbytes4(FixedArray[Byte], Int, Int) -> Unit
 
 // Errors
 
