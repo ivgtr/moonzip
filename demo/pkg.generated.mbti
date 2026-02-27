@@ -12,11 +12,13 @@ pub fn gzip_compress(String) -> String
 
 pub fn gzip_decompress(String) -> String
 
+pub fn set_encoding(String) -> String
+
 pub fn set_level(String) -> String
 
-pub fn unzip_extract(String, String) -> String
+pub fn unzip_extract(FixedArray[Byte], String) -> String
 
-pub fn unzip_list(String) -> String
+pub fn unzip_list(FixedArray[Byte]) -> String
 
 pub fn zip_add_entry(String, String) -> String
 

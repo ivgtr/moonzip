@@ -26,9 +26,9 @@ pub fn str_from_u8(FixedArray[Byte], latin1? : Bool) -> String raise @types.Flat
 
 pub fn str_to_u8(String, latin1? : Bool) -> FixedArray[Byte]
 
-pub fn unzip_list(FixedArray[Byte]) -> Array[@types.UnzipFileInfo] raise @types.FlateError
+pub fn unzip_list(FixedArray[Byte], decode? : (FixedArray[Byte]) -> String) -> Array[@types.UnzipFileInfo] raise @types.FlateError
 
-pub fn unzip_sync(FixedArray[Byte], filter? : (@types.UnzipFileInfo) -> Bool) -> Array[(String, FixedArray[Byte])] raise @types.FlateError
+pub fn unzip_sync(FixedArray[Byte], filter? : (@types.UnzipFileInfo) -> Bool, decode? : (FixedArray[Byte]) -> String) -> Array[(String, FixedArray[Byte])] raise @types.FlateError
 
 pub fn unzlib_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
 
