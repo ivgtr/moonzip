@@ -162,7 +162,7 @@
   </div>
 </div>
 
-<script src="../_build/js/debug/build/demo/demo.js"></script>
+<script src="./demo.js"></script>
 <script>
   let currentFormat = '';
   let currentZipHex = '';
@@ -462,7 +462,7 @@
       globalThis.set_level('6');
       updateInputStats();
     } else {
-      $('loading').textContent = 'Error: moonzip failed to load. Run "moon build --target js" first.';
+      $('loading').textContent = 'Error: moonzip failed to load. Run "moon build --target js && cp _build/js/debug/build/demo/demo.js demo/demo.js"';
     }
   });
 </script>

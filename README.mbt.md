@@ -9,7 +9,16 @@ A MoonBit compression library compatible with [fflate](https://github.com/101arr
 | DEFLATE | RFC 1951       | Yes      | Yes        | Yes       |
 | GZIP    | RFC 1952       | Yes      | Yes        | Yes       |
 | Zlib    | RFC 1950       | Yes      | Yes        | Yes       |
-| ZIP     | PKZIP APPNOTE  | Yes      | Yes        | -         |
+| ZIP     | PKZIP APPNOTE  | Yes      | Yes        | Yes       |
+
+## Features
+
+- LZ77 + Dynamic Huffman compression (levels 0-9)
+- Dictionary support (DEFLATE / Zlib FDICT)
+- Multi-member GZIP decompression
+- ZIP64 read support, per-entry options, archive comments
+- Incremental streaming with `ondata` callbacks
+- UTF-8 / Latin-1 string conversion
 
 ## Installation
 
@@ -22,11 +31,11 @@ moon add ivgtr/moonzip
 ### DEFLATE
 
 ```moonbit
-// Compress
-let compressed = @deflate.deflate_sync(data, opts=@types.DeflateOptions::{ level: 6, mem: 4, dictionary: None })
+// Compress (level 0-9, mem 0-12)
+let compressed = @moonzip.deflate_sync(data, opts={ level: 6, mem: 4, dictionary: None })
 
 // Decompress
-let decompressed = @deflate.inflate_sync(compressed)
+let decompressed = @moonzip.inflate_sync(compressed)
 ```
 
 ### GZIP
@@ -35,7 +44,7 @@ Supports concatenated multi-member GZIP streams (RFC 1952 section 2.2).
 
 ```moonbit
 // Compress
-let compressed = @gzip.gzip_sync(data, opts=@types.GzipOptions::{
+let compressed = @moonzip.gzip_sync(data, opts={
   level: 6,
   mem: 4,
   filename: Some("hello.txt"),
@@ -45,17 +54,26 @@ let compressed = @gzip.gzip_sync(data, opts=@types.GzipOptions::{
 })
 
 // Decompress (handles single and multi-member streams)
-let decompressed = @gzip.gunzip_sync(compressed)
+let decompressed = @moonzip.gunzip_sync(compressed)
+
+// Alias: compress_sync = gzip_sync
+let compressed = @moonzip.compress_sync(data)
 ```
 
 ### Zlib
 
+Supports preset dictionaries via FDICT flag.
+
 ```moonbit
 // Compress
-let compressed = @zlib.zlib_sync(data, opts=@types.ZlibOptions::{ level: 6, mem: 4, dictionary: None })
+let compressed = @moonzip.zlib_sync(data, opts={ level: 6, mem: 4, dictionary: None })
 
 // Decompress
-let decompressed = @zlib.unzlib_sync(compressed)
+let decompressed = @moonzip.unzlib_sync(compressed)
+
+// With dictionary
+let dict = @moonzip.str_to_u8("common words here")
+let compressed = @moonzip.zlib_sync(data, opts={ level: 6, mem: 4, dictionary: Some(dict) })
 ```
 
 ### ZIP
@@ -66,14 +84,15 @@ let files : Array[(String, FixedArray[Byte])] = [
   ("hello.txt", data1),
   ("dir/world.txt", data2),
 ]
-let archive = @zip.zip_sync(files, opts=@types.ZipOptions::{ level: 6, mtime: None, comment: None })
+let archive = @moonzip.zip_sync(files, opts={ level: 6, mtime: None, comment: None })
 
 // List entries
-let entries = @zip.unzip_list(archive)
-// entries[i].name, entries[i].size, entries[i].original_size, entries[i].compression
+let entries = @moonzip.unzip_list(archive)
+// entries[i].name, entries[i].size, entries[i].original_size, entries[i].compression,
+// entries[i].mtime, entries[i].attrs, entries[i].comment, entries[i].extra
 
 // Extract all
-let extracted = @zip.unzip_sync(archive)
+let extracted = @moonzip.unzip_sync(archive)
 // extracted[i].0 = filename, extracted[i].1 = data
 ```
 
@@ -87,8 +106,10 @@ let decompressed = @moonzip.decompress_sync(compressed_data)
 ### Streaming
 
 ```moonbit
-// DEFLATE streaming compression
-let stream = @stream.DeflateStream::new(level=6)
+// DEFLATE streaming with ondata callback
+let stream = @stream.DeflateStream::new(level=6, ondata=fn(chunk, final) {
+  // handle partial output
+})
 stream.push(chunk1, false)
 stream.push(chunk2, true)  // true = final chunk
 let result = stream.result()
@@ -98,29 +119,44 @@ let gz = @stream.GzipStream::new(level=6)
 gz.push(data, true)
 let compressed = gz.result()
 
-let gunz = @stream.GunzipStream::new()
+// Gunzip with multi-member callback
+let gunz = @stream.GunzipStream::new(onmember=fn(member_data) {
+  // called for each GZIP member
+})
 gunz.push(compressed, true)
 let decompressed = gunz.result()
 
-// Zlib streaming
+// Zlib / Inflate / Decompress streaming
 let zs = @stream.ZlibStream::new(level=6)
 let uzs = @stream.UnzlibStream::new()
-
-// Raw inflate streaming
 let inf = @stream.InflateStream::new()
 let dec = @stream.DecompressStream::new()  // auto-detect format
+
+// ZIP streaming creation
+let zip = @stream.Zip::new()
+let entry = @stream.ZipDeflate::new("file.txt", level=6)
+entry.push(data, true)
+zip.add_deflate(entry)
+let archive = zip.finish()
+
+// UTF-8 streaming
+let enc = @stream.EncodeUTF8::new(ondata=fn(bytes, final) { })
+let dec = @stream.DecodeUTF8::new(ondata=fn(text, final) { })
 ```
 
 ### Utilities
 
 ```moonbit
 // UTF-8 string <-> bytes conversion
-let bytes = @utf8.str_to_u8("Hello")
-let text = @utf8.str_from_u8(bytes)
+let bytes = @moonzip.str_to_u8("Hello")
+let text = @moonzip.str_from_u8(bytes)
+
+// Latin-1 mode
+let latin1_bytes = @moonzip.str_to_u8("café", latin1=true)
 
 // Checksums
-let crc = @checksum.crc32(data)
-let adl = @checksum.adler32(data)
+let crc = @moonzip.crc32(data)
+let adl = @moonzip.adler32(data)
 ```
 
 ### Error Handling
@@ -147,7 +183,7 @@ All compression/decompression functions raise `@types.FlateError`. Error codes (
 
 ```moonbit
 try {
-  let result = @gzip.gunzip_sync(data)
+  let result = @moonzip.gunzip_sync(data)
 } catch {
   @types.FlateError(code) => println("Error: \{code}")
 }
@@ -156,7 +192,12 @@ try {
 ## Demo
 
 ```sh
+# CLI demo
 moon run cmd/
+
+# Web demo
+moon build --target js && cp _build/js/debug/build/demo/demo.js demo/demo.js
+# Open demo/index.html in a browser
 ```
 
 ## License

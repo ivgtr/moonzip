@@ -1,5 +1,6 @@
 .DS_Store
 _build/
+demo/demo.js
 target/
 .mooncakes/
 .moonagent/
