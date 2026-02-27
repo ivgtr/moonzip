@@ -490,3 +490,59 @@ test "zip: mtime option is written correctly" {
   assert_eq(dos_time_read, expected_time)
   assert_eq(dos_date_read, expected_date)
 }
+
+///|
+test "zip: leap year date round-trip (2000-02-29)" {
+  // 2000-02-29 00:00:00 UTC = 951782400
+  let ts = 951782400
+  let (date, time) = td(ts)
+  let recovered = dt(date, time)
+  assert_eq(recovered, ts)
+  // Verify month=2, day=29
+  let month = (date >> 5) & 0x0F
+  let day = date & 0x1F
+  assert_eq(month, 2)
+  assert_eq(day, 29)
+}
+
+///|
+test "zip: 4-byte UTF-8 emoji filename round-trip" {
+  let data = string_to_bytes("emoji content")
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("\u{1F4C1}test.txt", data),
+  ]
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 1)
+  let (name, content) = result[0]
+  assert_eq(name, "\u{1F4C1}test.txt")
+  assert_true(bytes_equal(data, content))
+}
+
+///|
+test "zip: invalid local header signature" {
+  let data = string_to_bytes("test")
+  let files : Array[(String, FixedArray[Byte])] = [("test.txt", data)]
+  let archive_orig = zip_sync(files, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    level: 0,
+  })
+  let archive = FixedArray::make(archive_orig.length(), b'\x00')
+  for i = 0; i < archive_orig.length(); i = i + 1 {
+    archive[i] = archive_orig[i]
+  }
+  // Tamper with local file header signature (first 4 bytes)
+  archive[0] = b'\x00'
+  let mut got_error = false
+  let mut error_code : @types.FlateErrorCode = @types.FlateErrorCode::UnexpectedEOF
+  try {
+    let _ = unzip_sync(archive)
+  } catch {
+    @types.FlateError(code) => {
+      got_error = true
+      error_code = code
+    }
+  }
+  assert_true(got_error)
+  assert_eq(error_code, @types.FlateErrorCode::InvalidZipData)
+}

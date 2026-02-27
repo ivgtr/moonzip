@@ -229,3 +229,56 @@ test "dopt: clamps negative level to 0" {
   let params = dopt(opts)
   assert_eq(params[0], 0)
 }
+
+///|
+test "dopt: clamps mem above 12 to 12" {
+  let opts = @types.DeflateOptions::{ level: 6, mem: 20, dictionary: None }
+  let params = dopt(opts)
+  assert_eq(params[1], 12)
+}
+
+///|
+test "dopt: clamps negative mem to 0" {
+  let opts = @types.DeflateOptions::{ level: 6, mem: -5, dictionary: None }
+  let params = dopt(opts)
+  assert_eq(params[1], 0)
+}
+
+///|
+test "deflate: dictionary option raises error" {
+  let data = string_to_bytes("test")
+  let dict : FixedArray[Byte] = [b'\x01', b'\x02', b'\x03']
+  let mut got_error = false
+  try {
+    let _ = deflate_sync(data, opts=@types.DeflateOptions::{
+      level: 6,
+      mem: 4,
+      dictionary: Some(dict),
+    })
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "deflate level 6: 70000 bytes round-trip (multi-block)" {
+  let data = FixedArray::make(70000, b'\x00')
+  for i = 0; i < 70000; i = i + 1 {
+    data[i] = (i % 256).to_byte()
+  }
+  let compressed = deflate_sync(data)
+  let decompressed = inflate_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "inflate: with size hint" {
+  let data = string_to_bytes("Hello world with size hint!")
+  let compressed = deflate_sync(data)
+  let decompressed = inflate_sync(compressed, opts=@types.InflateOptions::{
+    size: Some(data.length()),
+    dictionary: None,
+  })
+  assert_true(bytes_equal(data, decompressed))
+}

@@ -233,3 +233,171 @@ test "DeflateStream: single push with final" {
   let decompressed = @deflate.inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
+
+// === result() before finished tests ===
+
+///|
+test "DeflateStream: result before finished raises error" {
+  let stream = @stream.DeflateStream::new()
+  let mut got_error = false
+  try {
+    let _ = stream.result()
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "InflateStream: result before finished raises error" {
+  let stream = @stream.InflateStream::new()
+  let mut got_error = false
+  try {
+    let _ = stream.result()
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "GzipStream: result before finished raises error" {
+  let stream = @stream.GzipStream::new()
+  let mut got_error = false
+  try {
+    let _ = stream.result()
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "GunzipStream: result before finished raises error" {
+  let stream = @stream.GunzipStream::new()
+  let mut got_error = false
+  try {
+    let _ = stream.result()
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "ZlibStream: result before finished raises error" {
+  let stream = @stream.ZlibStream::new()
+  let mut got_error = false
+  try {
+    let _ = stream.result()
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "UnzlibStream: result before finished raises error" {
+  let stream = @stream.UnzlibStream::new()
+  let mut got_error = false
+  try {
+    let _ = stream.result()
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "DecompressStream: result before finished raises error" {
+  let stream = @stream.DecompressStream::new()
+  let mut got_error = false
+  try {
+    let _ = stream.result()
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+// === push after finished tests ===
+
+///|
+test "InflateStream: push after finished raises error" {
+  let data = make_test_data()
+  let compressed = @deflate.deflate_sync(data)
+  let stream = @stream.InflateStream::new()
+  stream.push(compressed, true)
+  let mut got_error = false
+  let chunk : FixedArray[Byte] = [b'\x00']
+  stream.push(chunk, false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "GzipStream: push after finished raises error" {
+  let stream = @stream.GzipStream::new()
+  let data : FixedArray[Byte] = [b'\x41']
+  stream.push(data, true)
+  let mut got_error = false
+  stream.push(data, false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "GunzipStream: push after finished raises error" {
+  let data = make_test_data()
+  let compressed = @gzip.gzip_sync(data)
+  let stream = @stream.GunzipStream::new()
+  stream.push(compressed, true)
+  let mut got_error = false
+  let chunk : FixedArray[Byte] = [b'\x00']
+  stream.push(chunk, false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "ZlibStream: push after finished raises error" {
+  let stream = @stream.ZlibStream::new()
+  let data : FixedArray[Byte] = [b'\x41']
+  stream.push(data, true)
+  let mut got_error = false
+  stream.push(data, false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "UnzlibStream: push after finished raises error" {
+  let data = make_test_data()
+  let compressed = @zlib.zlib_sync(data)
+  let stream = @stream.UnzlibStream::new()
+  stream.push(compressed, true)
+  let mut got_error = false
+  let chunk : FixedArray[Byte] = [b'\x00']
+  stream.push(chunk, false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "DecompressStream: push after finished raises error" {
+  let data = make_test_data()
+  let compressed = @deflate.deflate_sync(data)
+  let stream = @stream.DecompressStream::new()
+  stream.push(compressed, true)
+  let mut got_error = false
+  let chunk : FixedArray[Byte] = [b'\x00']
+  stream.push(chunk, false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}

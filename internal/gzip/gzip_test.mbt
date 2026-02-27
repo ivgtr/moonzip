@@ -203,3 +203,89 @@ test "gzip: error on truncated data" {
   assert_true(got_error)
   assert_eq(error_code, @types.FlateErrorCode::UnexpectedEOF)
 }
+
+///|
+test "gzip: extra option round-trip" {
+  let data = string_to_bytes("extra test data")
+  let extra : FixedArray[Byte] = [b'\xAA', b'\xBB', b'\xCC', b'\xDD']
+  let compressed = @gzip.gzip_sync(data, opts=@types.GzipOptions::{
+    ..@types.GzipOptions::default(),
+    extra: Some(extra),
+  })
+  // FLG should have FEXTRA bit set (bit 2 = 0x04)
+  let flg = compressed[3].to_int()
+  assert_true((flg & 0x04) != 0)
+  let decompressed = @gzip.gunzip_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "gzip: comment option round-trip" {
+  let data = string_to_bytes("comment test data")
+  let compressed = @gzip.gzip_sync(data, opts=@types.GzipOptions::{
+    ..@types.GzipOptions::default(),
+    comment: Some("this is a comment"),
+  })
+  // FLG should have FCOMMENT bit set (bit 4 = 0x10)
+  let flg = compressed[3].to_int()
+  assert_true((flg & 0x10) != 0)
+  let decompressed = @gzip.gunzip_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "gzip: filename + extra + comment full options round-trip" {
+  let data = string_to_bytes("full options test")
+  let extra : FixedArray[Byte] = [b'\x01', b'\x02']
+  let compressed = @gzip.gzip_sync(data, opts=@types.GzipOptions::{
+    level: 6,
+    mem: 4,
+    mtime: Some(1700000000),
+    filename: Some("full.txt"),
+    comment: Some("full comment"),
+    extra: Some(extra),
+  })
+  // FLG should have FEXTRA, FNAME, FCOMMENT bits set
+  let flg = compressed[3].to_int()
+  assert_true((flg & 0x04) != 0)
+  assert_true((flg & 0x08) != 0)
+  assert_true((flg & 0x10) != 0)
+  let decompressed = @gzip.gunzip_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "gzip: ISIZE mismatch error" {
+  let data = string_to_bytes("isize test")
+  let compressed_orig = @gzip.gzip_sync(data)
+  // Copy and tamper with ISIZE (last 4 bytes)
+  let compressed = FixedArray::make(compressed_orig.length(), b'\x00')
+  for i = 0; i < compressed_orig.length(); i = i + 1 {
+    compressed[i] = compressed_orig[i]
+  }
+  let sl = compressed.length()
+  compressed[sl - 1] = ((compressed[sl - 1].to_int() + 1) & 0xFF).to_byte()
+  let mut got_error = false
+  try {
+    let _ = @gzip.gunzip_sync(compressed)
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "gzip: error on too short data (deflate_end < deflate_start)" {
+  // Valid 10-byte header but not enough for 8-byte footer
+  let data : FixedArray[Byte] = [
+    b'\x1F', b'\x8B', b'\x08', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00',
+    b'\x00', b'\xFF', b'\x00', b'\x00',
+  ]
+  let mut got_error = false
+  try {
+    let _ = @gzip.gunzip_sync(data)
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}

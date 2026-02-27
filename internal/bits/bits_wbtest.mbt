@@ -188,3 +188,36 @@ test "wbytes/b2/b4 round-trip" {
   assert_eq(b2(data, 0), 0xABCD)
   assert_eq(b4(data, 2), 0x12345678)
 }
+
+///|
+test "bits: 3-byte spanning read (bit_offset + count > 16)" {
+  // Read 10 bits starting at bit offset 7
+  // Byte 0: 0x80 = bits 0..7: 0000000 1 (bit 7 = 1)
+  // Byte 1: 0x55 = bits 8..15: 1010 1010 (LSB first: 10101010)
+  // Byte 2: 0x03 = bits 16..23: 1100 0000 (LSB first)
+  // Reading 10 bits from bit 7: bit7=1, bits8-15=01010101(byte1 reversed? No, LSB first)
+  // bits at pos 7, count 10: byte_pos=0, bit_offset=7
+  // v = 0x80 | (0x55 << 8) | (0x03 << 16) = 0x035580
+  // (v >> 7) & 0x3FF = (0x035580 >> 7) & 0x3FF = 0x6AAB & 0x3FF = 0x2AB
+  let data : FixedArray[Byte] = [b'\x80', b'\x55', b'\x03']
+  let result = bits(data, 7, 10)
+  assert_eq(result, 0x2AB)
+}
+
+///|
+test "wbits: 3-byte spanning write (bit_offset + count > 16)" {
+  // Write 10 bits at bit offset 7
+  let data : FixedArray[Byte] = FixedArray::make(3, b'\x00')
+  wbits(data, 7, 0x2AB, 10)
+  // Read back and verify
+  assert_eq(bits(data, 7, 10), 0x2AB)
+}
+
+///|
+test "wbits16: 4-byte spanning write (bit_offset + count > 24)" {
+  // Write 24 bits at bit offset 1 (1 + 24 = 25 > 24, hits 4th byte)
+  let data : FixedArray[Byte] = FixedArray::make(4, b'\x00')
+  wbits16(data, 1, 0xABCDEF, 24)
+  // Read back and verify
+  assert_eq(bits16(data, 1, 24), 0xABCDEF)
+}

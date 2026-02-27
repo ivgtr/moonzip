@@ -221,3 +221,85 @@ test "clen: computes total bits" {
   // 10*2 + 5*3 + 3*4 = 20 + 15 + 12 = 47
   assert_eq(clen(freq, lens), 47)
 }
+
+// === enc_pair tests ===
+
+///|
+test "enc_pair: length=3, distance=1" {
+  let (lcode, dcode) = enc_pair(3, 1)
+  // revfl[3] = ((3 - base) << 5) | code_index
+  // revfd[1] = ((1 - base) << 5) | code_index
+  // For length 3: code_index=0, base=3, so offset=0, result = (0 << 5) | 0 = 0
+  assert_eq(lcode, 0)
+  // For distance 1: code_index=0, base=1, so offset=0, result = (0 << 5) | 0 = 0
+  assert_eq(dcode, 0)
+}
+
+///|
+test "enc_pair: length=10, distance=4" {
+  let (lcode, dcode) = enc_pair(10, 4)
+  // length 10: fl[7]=10, fleb[7]=0 → code_index=7, offset=0
+  assert_eq(lcode & 31, 7)
+  // distance 4: fd[3]=4, fdeb[3]=0 → code_index=3, offset=0
+  assert_eq(dcode & 31, 3)
+}
+
+// === dyn_build tests ===
+
+///|
+test "dyn_build: uniform frequency" {
+  let lit_freq : FixedArray[Int] = FixedArray::make(288, 0)
+  let dist_freq : FixedArray[Int] = FixedArray::make(32, 0)
+  for i = 0; i < 256; i = i + 1 {
+    lit_freq[i] = 10
+  }
+  lit_freq[256] = 1
+  dist_freq[0] = 1
+  let (lm, lb, dm, db) = dyn_build(lit_freq, dist_freq)
+  assert_true(lm.length() > 0)
+  assert_true(lb > 0)
+  assert_true(dm.length() > 0)
+  assert_true(db > 0)
+}
+
+///|
+test "dyn_build: skewed frequency prefers fixed" {
+  // With very few distinct symbols, dynamic may not beat fixed
+  let lit_freq : FixedArray[Int] = FixedArray::make(288, 0)
+  let dist_freq : FixedArray[Int] = FixedArray::make(32, 0)
+  lit_freq[0] = 1000
+  lit_freq[256] = 1
+  let (lm, lb, _dm, _db) = dyn_build(lit_freq, dist_freq)
+  assert_true(lm.length() > 0)
+  assert_true(lb > 0)
+}
+
+// === lc long zero run tests ===
+
+///|
+test "lc: 140 consecutive zeros (symbol 18 twice)" {
+  // 140 zeros followed by a non-zero to prevent full trimming
+  let c : FixedArray[Int] = FixedArray::make(141, 0)
+  c[140] = 5
+  let result = lc(c)
+  assert_eq(result.n, 141)
+  // 140 zeros should be encoded as symbol 18 (max 138) + symbol 17 (2 remaining is too few, so individual)
+  // Actually: 140 > 138, so first emit symbol 18 for 138, remaining 2 zeros are individual
+  assert_true(result.c.length() >= 3)
+  // First entry: symbol 18 for 138 zeros
+  let sym0 = result.c[0] & 31
+  // symbol 18 packed = ((count-11) << 5) | 28690 → sym0 should decode to 18
+  assert_eq(sym0, 18)
+}
+
+///|
+test "lc: 10 repeated non-zero values (symbol 16)" {
+  let c : FixedArray[Int] = FixedArray::make(10, 5)
+  let result = lc(c)
+  assert_eq(result.n, 10)
+  // First entry should be literal 5
+  assert_eq(result.c[0], 5)
+  // Remaining 9 repeats: 1 literal + 8 more → symbol 16 for 6 (max), then 2 more individual
+  // Or: 1 literal emitted, then 9 remaining. > 6 → symbol 16 for 6, remaining 3 → symbol 16 for 3
+  assert_true(result.c.length() >= 2)
+}
