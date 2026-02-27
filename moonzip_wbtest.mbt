@@ -862,3 +862,87 @@ test "G3: wrapper formats add known overhead" {
   // Zlib adds 2-byte header + 4-byte footer = 6 bytes overhead
   assert_eq(zlib_c.length(), deflate_c.length() + 6)
 }
+
+// ============================================================
+// G-4: 大規模データテスト
+// ============================================================
+
+///|
+test "G4: 1MB text data round-trip DEFLATE level 6" {
+  let data = generate_repeat_text(1048576) // 1MB
+  let compressed = @deflate.deflate_sync(data)
+  let decompressed = @deflate.inflate_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "G4: 1MB text data round-trip GZIP level 6" {
+  let data = generate_repeat_text(1048576) // 1MB
+  let compressed = @gzip.gzip_sync(data)
+  let decompressed = @gzip.gunzip_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "G4: 1MB text data round-trip Zlib level 6" {
+  let data = generate_repeat_text(1048576) // 1MB
+  let compressed = @zlib.zlib_sync(data)
+  let decompressed = @zlib.unzlib_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "G4: 1MB text data round-trip ZIP level 6" {
+  let data = generate_repeat_text(1048576) // 1MB
+  let files : Array[(String, FixedArray[Byte])] = [("large.txt", data)]
+  let archive = @zip.zip_sync(files)
+  let extracted = @zip.unzip_sync(archive)
+  assert_eq(extracted.length(), 1)
+  assert_true(bytes_equal(extracted[0].1, data))
+}
+
+///|
+test "G4: 100KB binary data round-trip DEFLATE level 6" {
+  let data = FixedArray::make(102400, b'\x00') // 100KB
+  for i = 0; i < 102400; i = i + 1 {
+    data[i] = (i % 256).to_byte()
+  }
+  let compressed = @deflate.deflate_sync(data)
+  let decompressed = @deflate.inflate_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "G4: 100KB binary data round-trip GZIP level 6" {
+  let data = FixedArray::make(102400, b'\x00') // 100KB
+  for i = 0; i < 102400; i = i + 1 {
+    data[i] = (i % 256).to_byte()
+  }
+  let compressed = @gzip.gzip_sync(data)
+  let decompressed = @gzip.gunzip_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "G4: 100KB binary data round-trip Zlib level 6" {
+  let data = FixedArray::make(102400, b'\x00') // 100KB
+  for i = 0; i < 102400; i = i + 1 {
+    data[i] = (i % 256).to_byte()
+  }
+  let compressed = @zlib.zlib_sync(data)
+  let decompressed = @zlib.unzlib_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "G4: 100KB binary data round-trip ZIP level 6" {
+  let data = FixedArray::make(102400, b'\x00') // 100KB
+  for i = 0; i < 102400; i = i + 1 {
+    data[i] = (i % 256).to_byte()
+  }
+  let files : Array[(String, FixedArray[Byte])] = [("binary.bin", data)]
+  let archive = @zip.zip_sync(files)
+  let extracted = @zip.unzip_sync(archive)
+  assert_eq(extracted.length(), 1)
+  assert_true(bytes_equal(extracted[0].1, data))
+}
