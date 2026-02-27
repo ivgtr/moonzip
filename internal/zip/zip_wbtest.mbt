@@ -1018,3 +1018,222 @@ test "zip round-trip: ASCII-only filename preserved regardless of encoding path"
   assert_eq(result[0].0, "readme.txt")
   assert_true(bytes_equal(result[0].1, data))
 }
+
+// ============================================================
+// decode callback tests
+// ============================================================
+
+/// Build a minimal valid ZIP with explicit UTF-8 flag control.
+/// compression=0 (Store), single entry.
+fn build_test_zip(
+  filename : FixedArray[Byte],
+  content : FixedArray[Byte],
+  utf8_flag : Bool,
+  comment~ : FixedArray[Byte] = [],
+) -> FixedArray[Byte] {
+  let crc = @checksum.crc32(content).reinterpret_as_int()
+  let flags = if utf8_flag { 0x800 } else { 0 }
+  let fn_len = filename.length()
+  let c_len = content.length()
+  let cm_len = comment.length()
+  // Local File Header: 30 + fn_len + c_len
+  let lfh_size = 30 + fn_len
+  // Central Directory Header: 46 + fn_len + cm_len
+  let cdh_size = 46 + fn_len + cm_len
+  // EOCD: 22
+  let total = lfh_size + c_len + cdh_size + 22
+  let buf = FixedArray::make(total, b'\x00')
+  // --- Local File Header ---
+  @bits.wbytes4(buf, 0, 0x04034B50)
+  @bits.wbytes2(buf, 4, 20) // version needed
+  @bits.wbytes2(buf, 6, flags)
+  @bits.wbytes2(buf, 8, 0) // compression = Store
+  @bits.wbytes2(buf, 10, 0) // mod time
+  @bits.wbytes2(buf, 12, 0) // mod date
+  @bits.wbytes4(buf, 14, crc)
+  @bits.wbytes4(buf, 18, c_len)
+  @bits.wbytes4(buf, 22, c_len)
+  @bits.wbytes2(buf, 26, fn_len)
+  @bits.wbytes2(buf, 28, 0) // extra len
+  for i = 0; i < fn_len; i = i + 1 {
+    buf[30 + i] = filename[i]
+  }
+  // File data
+  let data_start = lfh_size
+  for i = 0; i < c_len; i = i + 1 {
+    buf[data_start + i] = content[i]
+  }
+  // --- Central Directory Header ---
+  let cd_offset = data_start + c_len
+  @bits.wbytes4(buf, cd_offset, 0x02014B50)
+  @bits.wbytes2(buf, cd_offset + 4, 20) // version made by
+  @bits.wbytes2(buf, cd_offset + 6, 20) // version needed
+  @bits.wbytes2(buf, cd_offset + 8, flags)
+  @bits.wbytes2(buf, cd_offset + 10, 0) // compression
+  @bits.wbytes2(buf, cd_offset + 12, 0) // mod time
+  @bits.wbytes2(buf, cd_offset + 14, 0) // mod date
+  @bits.wbytes4(buf, cd_offset + 16, crc)
+  @bits.wbytes4(buf, cd_offset + 20, c_len)
+  @bits.wbytes4(buf, cd_offset + 24, c_len)
+  @bits.wbytes2(buf, cd_offset + 28, fn_len)
+  @bits.wbytes2(buf, cd_offset + 30, 0) // extra len
+  @bits.wbytes2(buf, cd_offset + 32, cm_len) // comment len
+  @bits.wbytes2(buf, cd_offset + 34, 0) // disk number start
+  @bits.wbytes2(buf, cd_offset + 36, 0) // internal file attrs
+  @bits.wbytes4(buf, cd_offset + 38, 0) // external file attrs
+  @bits.wbytes4(buf, cd_offset + 42, 0) // local header offset
+  for i = 0; i < fn_len; i = i + 1 {
+    buf[cd_offset + 46 + i] = filename[i]
+  }
+  for i = 0; i < cm_len; i = i + 1 {
+    buf[cd_offset + 46 + fn_len + i] = comment[i]
+  }
+  // --- EOCD ---
+  let eocd_offset = cd_offset + cdh_size
+  @bits.wbytes4(buf, eocd_offset, 0x06054B50)
+  @bits.wbytes2(buf, eocd_offset + 4, 0) // disk number
+  @bits.wbytes2(buf, eocd_offset + 6, 0) // CD start disk
+  @bits.wbytes2(buf, eocd_offset + 8, 1) // entries on this disk
+  @bits.wbytes2(buf, eocd_offset + 10, 1) // total entries
+  @bits.wbytes4(buf, eocd_offset + 12, cdh_size) // CD size
+  @bits.wbytes4(buf, eocd_offset + 16, cd_offset) // CD offset
+  @bits.wbytes2(buf, eocd_offset + 20, 0) // comment len
+  buf
+}
+
+///|
+test "decode: custom decoder transforms non-UTF-8 filename" {
+  let filename : FixedArray[Byte] = [b'\x68', b'\x65', b'\x6C', b'\x6C', b'\x6F'] // "hello"
+  let content : FixedArray[Byte] = [b'\x41']
+  let archive = build_test_zip(filename, content, false)
+  let result = unzip_sync(
+    archive,
+    decode=fn(raw) {
+      let buf = StringBuilder::new()
+      for i = 0; i < raw.length(); i = i + 1 {
+        let b = raw[i].to_int()
+        // Convert lowercase ASCII to uppercase
+        let ch = if b >= 0x61 && b <= 0x7A { b - 32 } else { b }
+        buf.write_char(ch.unsafe_to_char())
+      }
+      buf.to_string()
+    },
+  )
+  assert_eq(result.length(), 1)
+  assert_eq(result[0].0, "HELLO")
+}
+
+///|
+test "decode: custom decoder transforms non-UTF-8 comment" {
+  let filename : FixedArray[Byte] = [b'\x61'] // "a"
+  let content : FixedArray[Byte] = [b'\x42']
+  let comment : FixedArray[Byte] = [b'\x68', b'\x69'] // "hi"
+  let archive = build_test_zip(filename, content, false, comment~)
+  let list = unzip_list(
+    archive,
+    decode=fn(raw) {
+      let buf = StringBuilder::new()
+      for i = 0; i < raw.length(); i = i + 1 {
+        let b = raw[i].to_int()
+        let ch = if b >= 0x61 && b <= 0x7A { b - 32 } else { b }
+        buf.write_char(ch.unsafe_to_char())
+      }
+      buf.to_string()
+    },
+  )
+  assert_eq(list.length(), 1)
+  assert_eq(list[0].comment, "HI")
+}
+
+///|
+test "decode: decoder not called when UTF-8 flag is set" {
+  let filename : FixedArray[Byte] = [b'\x61'] // "a"
+  let content : FixedArray[Byte] = [b'\x42']
+  let archive = build_test_zip(filename, content, true)
+  let mut called_count = 0
+  let result = unzip_sync(
+    archive,
+    decode=fn(raw) {
+      called_count = called_count + 1
+      let buf = StringBuilder::new()
+      for i = 0; i < raw.length(); i = i + 1 {
+        buf.write_char(raw[i].to_int().unsafe_to_char())
+      }
+      buf.to_string()
+    },
+  )
+  assert_eq(result.length(), 1)
+  assert_eq(called_count, 0)
+}
+
+///|
+test "decode: latin1 fallback without custom decoder" {
+  // 0xE9 = latin1 'é'
+  let filename : FixedArray[Byte] = [b'\xE9']
+  let content : FixedArray[Byte] = [b'\x41']
+  let archive = build_test_zip(filename, content, false)
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 1)
+  assert_eq(result[0].0, "\u{00E9}")
+}
+
+///|
+test "decode: unzip_list applies custom decoder" {
+  let filename : FixedArray[Byte] = [b'\x68', b'\x69'] // "hi"
+  let content : FixedArray[Byte] = [b'\x41']
+  let archive = build_test_zip(filename, content, false)
+  let list = unzip_list(
+    archive,
+    decode=fn(raw) {
+      let buf = StringBuilder::new()
+      for i = 0; i < raw.length(); i = i + 1 {
+        let b = raw[i].to_int()
+        let ch = if b >= 0x61 && b <= 0x7A { b - 32 } else { b }
+        buf.write_char(ch.unsafe_to_char())
+      }
+      buf.to_string()
+    },
+  )
+  assert_eq(list.length(), 1)
+  assert_eq(list[0].name, "HI")
+}
+
+///|
+test "decode: simulated Shift_JIS round-trip" {
+  // Shift_JIS bytes for "テスト": 0x83 0x65 0x83 0x58 0x83 0x67
+  let sjis_bytes : FixedArray[Byte] = [
+    b'\x83', b'\x65', b'\x83', b'\x58', b'\x83', b'\x67',
+  ]
+  let content : FixedArray[Byte] = [b'\x00']
+  let archive = build_test_zip(sjis_bytes, content, false)
+  let result = unzip_sync(
+    archive,
+    decode=fn(raw) {
+      // Simple lookup decoder for these specific Shift_JIS bytes
+      let buf = StringBuilder::new()
+      let mut i = 0
+      while i < raw.length() {
+        let b1 = raw[i].to_int()
+        if b1 == 0x83 && i + 1 < raw.length() {
+          let b2 = raw[i + 1].to_int()
+          if b2 == 0x65 {
+            buf.write_char('\u{30C6}') // テ
+          } else if b2 == 0x58 {
+            buf.write_char('\u{30B9}') // ス
+          } else if b2 == 0x67 {
+            buf.write_char('\u{30C8}') // ト
+          } else {
+            buf.write_char('?')
+          }
+          i = i + 2
+        } else {
+          buf.write_char('?')
+          i = i + 1
+        }
+      }
+      buf.to_string()
+    },
+  )
+  assert_eq(result.length(), 1)
+  assert_eq(result[0].0, "\u{30C6}\u{30B9}\u{30C8}")
+}

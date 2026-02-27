@@ -131,21 +131,62 @@ fn parse_int(s : String) -> Int {
   n
 }
 
-// Compression level state
+// Compression level / encoding state
 
 ///|
 priv struct DemoState {
   mut level : Int
+  mut encoding : String
 }
 
 ///|
-let demo_state : DemoState = { level: 6 }
+let demo_state : DemoState = { level: 6, encoding: "" }
 
 ///|
 pub fn set_level(level_str : String) -> String {
   let lv = parse_int(level_str)
   demo_state.level = if lv > 9 { 9 } else { lv }
   "ok:" + demo_state.level.to_string()
+}
+
+///|
+fn normalize_encoding(encoding : String) -> String {
+  let chars = Array::new()
+  for c in encoding {
+    chars.push(c)
+  }
+  let mut start = 0
+  while start < chars.length() && chars[start] == ' ' {
+    start = start + 1
+  }
+  let mut end = chars.length()
+  while end > start && chars[end - 1] == ' ' {
+    end = end - 1
+  }
+  let sb = StringBuilder::new()
+  for i = start; i < end; i = i + 1 {
+    let n = chars[i].to_int()
+    let ch = if n >= 65 && n <= 90 { (n + 32).unsafe_to_char() } else { chars[i] }
+    sb.write_char(ch)
+  }
+  let lower = sb.to_string()
+  if lower == "utf-8" { "" } else { lower }
+}
+
+///|
+pub fn set_encoding(encoding : String) -> String {
+  demo_state.encoding = normalize_encoding(encoding)
+  "ok:" + demo_state.encoding
+}
+
+///|
+fn make_decoder() -> ((FixedArray[Byte]) -> String)? {
+  if demo_state.encoding == "" {
+    None
+  } else {
+    let enc = demo_state.encoding
+    Some(fn(raw) { js_text_decode(raw, enc) })
+  }
 }
 
 // Compress / Decompress
@@ -254,7 +295,11 @@ pub fn decompress_auto(hex_input : String) -> String {
 ///|
 pub fn unzip_list(data : FixedArray[Byte]) -> String {
   try {
-    let entries = @zip.unzip_list(data)
+    let decoder = make_decoder()
+    let entries = match decoder {
+      Some(d) => @zip.unzip_list(data, decode=d)
+      None => @zip.unzip_list(data)
+    }
     let sb = StringBuilder::new()
     sb.write_string("ok:")
     for i = 0; i < entries.length(); i = i + 1 {
@@ -287,7 +332,11 @@ pub fn unzip_list(data : FixedArray[Byte]) -> String {
 ///|
 pub fn unzip_extract(data : FixedArray[Byte], filename : String) -> String {
   try {
-    let files = @zip.unzip_sync(data)
+    let decoder = make_decoder()
+    let files = match decoder {
+      Some(d) => @zip.unzip_sync(data, decode=d)
+      None => @zip.unzip_sync(data)
+    }
     let mut i = 0
     while i < files.length() {
       let (name, content) = files[i]

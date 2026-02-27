@@ -8,10 +8,15 @@ import {
 
 options(
   "is-main": true,
+  targets: {
+    "js_ffi.mbt": ["js"],
+    "wasm_ffi.mbt": ["wasm", "wasm-gc"],
+  },
   link: {
     "js": {
       "exports": [
         "set_level",
+        "set_encoding",
         "gzip_compress",
         "gzip_decompress",
         "zlib_compress",

@@ -149,6 +149,18 @@
   </div>
 
   <div class="tab-content" id="tab-viewer">
+    <div class="level-bar">
+      <label>Encoding</label>
+      <select id="encoding-select" onchange="updateEncoding(this.value)">
+        <option value="">Auto (UTF-8 / Latin-1)</option>
+        <option value="shift_jis">Shift_JIS</option>
+        <option value="euc-jp">EUC-JP</option>
+        <option value="gb2312">GB2312</option>
+        <option value="euc-kr">EUC-KR</option>
+        <option value="big5">Big5</option>
+        <option value="windows-1252">Windows-1252</option>
+      </select>
+    </div>
     <div class="drop-zone" id="drop-zone">
       <p>Drop a ZIP file here</p>
       <small>or click to select</small>
@@ -166,6 +178,7 @@
 <script>
   let currentFormat = '';
   let currentZipData = null;
+  let currentFileName = null;
   const creatorEntries = [];
   const $ = id => document.getElementById(id);
 
@@ -341,8 +354,8 @@
   function viewCreatedZip(hex) {
     switchTab('viewer');
     currentZipData = hexToUint8Array(hex);
-    const result = globalThis.unzip_list(currentZipData);
-    renderResult('archive.zip', currentZipData.length, result);
+    currentFileName = 'archive.zip';
+    refreshViewer();
   }
 
   // === ZIP Viewer ===
@@ -365,15 +378,26 @@
     return bytes;
   }
 
+  function refreshViewer() {
+    if (!currentZipData) return;
+    const result = globalThis.unzip_list(currentZipData);
+    renderResult(currentFileName || 'archive.zip', currentZipData.length, result);
+  }
+
   function handleFile(file) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(e) {
       currentZipData = new Uint8Array(e.target.result);
-      const result = globalThis.unzip_list(currentZipData);
-      renderResult(file.name, file.size, result);
+      currentFileName = file.name;
+      refreshViewer();
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  function updateEncoding(val) {
+    globalThis.set_encoding(val);
+    refreshViewer();
   }
 
   function renderResult(fileName, fileSize, result) {

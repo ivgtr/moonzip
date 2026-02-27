@@ -99,19 +99,31 @@ pub fn zip_sync(
 
 ///|
 /// Extract files from a ZIP archive.
+///
+/// `decode` is called for entry-level filenames and comments when the UTF-8
+/// flag (bit 11) is **not** set. Pass a decoder such as Shift_JIS → String
+/// to handle non-UTF-8 archives. Entries with the UTF-8 flag are always
+/// decoded as UTF-8 regardless of this parameter.
 pub fn unzip_sync(
   data : FixedArray[Byte],
   filter? : (@types.UnzipFileInfo) -> Bool,
+  decode? : (FixedArray[Byte]) -> String,
 ) -> Array[(String, FixedArray[Byte])] raise @types.FlateError {
-  @zip.unzip_sync(data, filter?)
+  @zip.unzip_sync(data, filter?, decode?)
 }
 
 ///|
 /// List files in a ZIP archive without extracting.
+///
+/// `decode` is called for entry-level filenames and comments when the UTF-8
+/// flag (bit 11) is **not** set. Pass a decoder such as Shift_JIS → String
+/// to handle non-UTF-8 archives. Entries with the UTF-8 flag are always
+/// decoded as UTF-8 regardless of this parameter.
 pub fn unzip_list(
   data : FixedArray[Byte],
+  decode? : (FixedArray[Byte]) -> String,
 ) -> Array[@types.UnzipFileInfo] raise @types.FlateError {
-  @zip.unzip_list(data)
+  @zip.unzip_list(data, decode?)
 }
 
 ///|

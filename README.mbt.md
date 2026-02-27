@@ -28,7 +28,7 @@ fflate Sync API compatibility: 100% (27/27)
 - Multi-member GZIP decompression
 - ZIP64 read support, per-entry options, archive comments
 - Incremental streaming with `ondata` callbacks
-- UTF-8 / Latin-1 string conversion
+- UTF-8 / Latin-1 string conversion, custom filename decoder for non-UTF-8 archives
 
 ## Installation
 
@@ -115,6 +115,17 @@ let extracted = @moonzip.unzip_sync(archive)
 
 // Extract with filter
 let txt_only = @moonzip.unzip_sync(archive, filter=fn(info) { info.name.contains(".txt") })
+
+// Custom filename decoder (for non-UTF-8 archives like Shift_JIS)
+let decoded = @moonzip.unzip_list(archive, decode=fn(raw) {
+  // raw contains the non-UTF-8 bytes; return decoded String
+  my_shift_jis_decoder(raw)
+})
+
+let extracted = @moonzip.unzip_sync(archive, decode=fn(raw) {
+  my_shift_jis_decoder(raw)
+})
+// decode is only called for entries without the UTF-8 flag (bit 11)
 ```
 
 ### Auto-detect Decompression

@@ -248,6 +248,37 @@ fn wzf(
 }
 
 // ============================================================
+// decode_entry_text - Unified entry text decoder
+// ============================================================
+
+///|
+/// Decode entry-level text (filename or comment) with UTF-8 flag awareness.
+/// When bit 11 (0x800) is set, decodes as UTF-8.
+/// Otherwise, calls the user-supplied decoder or falls back to latin1.
+fn decode_entry_text(
+  data : FixedArray[Byte],
+  offset : Int,
+  length : Int,
+  flags : Int,
+  decode : ((FixedArray[Byte]) -> String)?,
+) -> String {
+  if (flags & 0x800) != 0 {
+    utf8_to_string(data, offset, length)
+  } else {
+    match decode {
+      Some(decoder) => {
+        let raw = FixedArray::make(length, b'\x00')
+        for j = 0; j < length; j = j + 1 {
+          raw[j] = data[offset + j]
+        }
+        decoder(raw)
+      }
+      None => latin1_to_string(data, offset, length)
+    }
+  }
+}
+
+// ============================================================
 // zh - Parse Central Directory Entry
 // ============================================================
 
@@ -268,7 +299,11 @@ priv struct CdEntry {
 }
 
 ///|
-fn zh(data : FixedArray[Byte], offset : Int) -> CdEntry raise @types.FlateError {
+fn zh(
+  data : FixedArray[Byte],
+  offset : Int,
+  decode? : (FixedArray[Byte]) -> String,
+) -> CdEntry raise @types.FlateError {
   let sl = data.length()
   if offset + 46 > sl {
     raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
@@ -294,11 +329,7 @@ fn zh(data : FixedArray[Byte], offset : Int) -> CdEntry raise @types.FlateError 
     raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
   }
   // Decode filename
-  let filename = if (flags & 0x800) != 0 {
-    utf8_to_string(data, offset + 46, filename_len)
-  } else {
-    latin1_to_string(data, offset + 46, filename_len)
-  }
+  let filename = decode_entry_text(data, offset + 46, filename_len, flags, decode)
   // Convert DOS date/time to Unix timestamp
   let mtime = dt(dos_date, dos_time)
   // Parse extra fields
@@ -320,11 +351,7 @@ fn zh(data : FixedArray[Byte], offset : Int) -> CdEntry raise @types.FlateError 
   // Decode comment
   let comment_start = extra_start + extra_len
   let comment = if comment_len > 0 {
-    if (flags & 0x800) != 0 {
-      utf8_to_string(data, comment_start, comment_len)
-    } else {
-      latin1_to_string(data, comment_start, comment_len)
-    }
+    decode_entry_text(data, comment_start, comment_len, flags, decode)
   } else {
     ""
   }
@@ -750,6 +777,7 @@ fn parse_eocd(
 ///|
 pub fn unzip_list(
   data : FixedArray[Byte],
+  decode? : (FixedArray[Byte]) -> String,
 ) -> Array[@types.UnzipFileInfo] raise @types.FlateError {
   let (_eocd_offset, entry_count, _cd_size, cd_offset, _archive_comment) = parse_eocd(
     data,
@@ -757,7 +785,7 @@ pub fn unzip_list(
   let result : Array[@types.UnzipFileInfo] = []
   let mut cd_pos = cd_offset
   for _i = 0; _i < entry_count; _i = _i + 1 {
-    let entry = zh(data, cd_pos)
+    let entry = zh(data, cd_pos, decode?)
     cd_pos = cd_pos + entry.entry_total_size
     result.push(@types.UnzipFileInfo::{
       name: entry.filename,
@@ -798,6 +826,7 @@ pub fn zip_comment(data : FixedArray[Byte]) -> String raise @types.FlateError {
 pub fn unzip_sync(
   data : FixedArray[Byte],
   filter? : (@types.UnzipFileInfo) -> Bool,
+  decode? : (FixedArray[Byte]) -> String,
 ) -> Array[(String, FixedArray[Byte])] raise @types.FlateError {
   let sl = data.length()
   let (_eocd_offset, entry_count, _cd_size, cd_offset, _archive_comment) = parse_eocd(
@@ -807,7 +836,7 @@ pub fn unzip_sync(
   let result : Array[(String, FixedArray[Byte])] = []
   let mut cd_pos = cd_offset
   for _i = 0; _i < entry_count; _i = _i + 1 {
-    let entry = zh(data, cd_pos)
+    let entry = zh(data, cd_pos, decode?)
     cd_pos = cd_pos + entry.entry_total_size
     // Apply filter if provided
     match filter {
