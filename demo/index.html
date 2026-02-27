@@ -165,7 +165,7 @@
 <script src="./demo.js"></script>
 <script>
   let currentFormat = '';
-  let currentZipHex = '';
+  let currentZipData = null;
   const creatorEntries = [];
   const $ = id => document.getElementById(id);
 
@@ -307,10 +307,12 @@
           ZIP archive created: <b>${formatSize(bytes)}</b>
         </div>
         <div class="actions">
-          <button class="primary" onclick="downloadZip('${hex}')">Download ZIP</button>
-          <button onclick="viewCreatedZip('${hex}')">View in ZIP Viewer</button>
+          <button class="primary" id="btn-download-zip">Download ZIP</button>
+          <button id="btn-view-zip">View in ZIP Viewer</button>
         </div>
       `;
+      $('btn-download-zip').addEventListener('click', () => downloadZip(hex));
+      $('btn-view-zip').addEventListener('click', () => viewCreatedZip(hex));
     } else {
       container.innerHTML = `<div class="error" style="font-size: 0.8rem;">${result.slice(4)}</div>`;
     }
@@ -324,7 +326,7 @@
   }
 
   function downloadZip(hex) {
-    const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+    const bytes = hexToUint8Array(hex);
     const blob = new Blob([bytes], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -338,10 +340,9 @@
 
   function viewCreatedZip(hex) {
     switchTab('viewer');
-    currentZipHex = hex;
-    const result = globalThis.unzip_list(hex);
-    const bytes = hex.length / 2;
-    renderResult('archive.zip', bytes, result);
+    currentZipData = hexToUint8Array(hex);
+    const result = globalThis.unzip_list(currentZipData);
+    renderResult('archive.zip', currentZipData.length, result);
   }
 
   // === ZIP Viewer ===
@@ -356,21 +357,20 @@
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function bytesToHex(uint8) {
-    const hex = [];
-    for (let i = 0; i < uint8.length; i++) {
-      hex.push(uint8[i].toString(16).padStart(2, '0'));
+  function hexToUint8Array(hex) {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
     }
-    return hex.join('');
+    return bytes;
   }
 
   function handleFile(file) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(e) {
-      const uint8 = new Uint8Array(e.target.result);
-      currentZipHex = bytesToHex(uint8);
-      const result = globalThis.unzip_list(currentZipHex);
+      currentZipData = new Uint8Array(e.target.result);
+      const result = globalThis.unzip_list(currentZipData);
       renderResult(file.name, file.size, result);
     };
     reader.readAsArrayBuffer(file);
@@ -426,8 +426,8 @@
   }
 
   function previewFile(filename) {
-    if (!currentZipHex) return;
-    const result = globalThis.unzip_extract(currentZipHex, filename);
+    if (!currentZipData) return;
+    const result = globalThis.unzip_extract(currentZipData, filename);
     const panel = $('preview-panel');
     if (result.startsWith('ok:')) {
       $('preview-name').textContent = filename;

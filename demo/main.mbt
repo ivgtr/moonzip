@@ -78,16 +78,17 @@ fn bytes_to_hex(data : FixedArray[Byte]) -> String {
 
 ///|
 fn hex_to_bytes(s : String) -> FixedArray[Byte] {
-  let chars = Array::new()
-  for c in s {
-    chars.push(c)
-  }
-  let len = chars.length() / 2
+  let len = s.length() / 2
   let arr = FixedArray::make(len, b'\x00')
-  for i = 0; i < len; i = i + 1 {
-    let hi = hex_val(chars[i * 2])
-    let lo = hex_val(chars[i * 2 + 1])
-    arr[i] = ((hi << 4) | lo).to_byte()
+  let mut i = 0
+  let mut hi = 0
+  for c in s {
+    if i % 2 == 0 {
+      hi = hex_val(c)
+    } else {
+      arr[i / 2] = ((hi << 4) | hex_val(c)).to_byte()
+    }
+    i = i + 1
   }
   arr
 }
@@ -239,8 +240,7 @@ pub fn decompress_auto(hex_input : String) -> String {
 // ZIP list / extract
 
 ///|
-pub fn unzip_list(hex_input : String) -> String {
-  let data = hex_to_bytes(hex_input)
+pub fn unzip_list(data : FixedArray[Byte]) -> String {
   try {
     let entries = @zip.unzip_list(data)
     let sb = StringBuilder::new()
@@ -273,8 +273,7 @@ pub fn unzip_list(hex_input : String) -> String {
 }
 
 ///|
-pub fn unzip_extract(hex_input : String, filename : String) -> String {
-  let data = hex_to_bytes(hex_input)
+pub fn unzip_extract(data : FixedArray[Byte], filename : String) -> String {
   try {
     let files = @zip.unzip_sync(data)
     let mut i = 0
