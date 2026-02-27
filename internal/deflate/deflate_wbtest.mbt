@@ -482,3 +482,85 @@ test "auto_mem: user-specified mem is respected" {
   assert_eq(auto_mem(100, 8), 8)
   assert_eq(auto_mem(100000, 2), 2)
 }
+
+// === A-T2: Compression ratio tests ===
+
+///|
+test "compression ratio: level>0 smaller than level 0 for repeated data" {
+  // Highly compressible data: 4KB of repeated "abcdefgh"
+  let data = FixedArray::make(4096, b'\x00')
+  for i = 0; i < 4096; i = i + 1 {
+    let ch = match i % 8 {
+      0 => b'\x61'
+      1 => b'\x62'
+      2 => b'\x63'
+      3 => b'\x64'
+      4 => b'\x65'
+      5 => b'\x66'
+      6 => b'\x67'
+      _ => b'\x68'
+    }
+    data[i] = ch
+  }
+  let store = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 0,
+  })
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 6,
+  })
+  assert_true(compressed.length() < store.length())
+}
+
+///|
+test "compression ratio: all zeros 1KB compresses significantly" {
+  let data = fill_bytes(b'\x00', 1024)
+  let store = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 0,
+  })
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 1,
+  })
+  // Should compress dramatically (run of same byte)
+  assert_true(compressed.length() < store.length())
+  assert_true(compressed.length() < data.length() / 2)
+}
+
+///|
+test "compression ratio: 10KB repeated pattern compresses well" {
+  let data = FixedArray::make(10240, b'\x00')
+  for i = 0; i < 10240; i = i + 1 {
+    data[i] = (i % 37).to_byte()
+  }
+  let store = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 0,
+  })
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 6,
+  })
+  assert_true(compressed.length() < store.length())
+}
+
+///|
+test "compression ratio: levels 1-9 all beat store for repeated data" {
+  let data = FixedArray::make(2048, b'\x00')
+  for i = 0; i < 2048; i = i + 1 {
+    data[i] = (i % 16).to_byte()
+  }
+  let store_size = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 0,
+  }).length()
+  for level = 1; level <= 9; level = level + 1 {
+    let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    })
+    assert_true(compressed.length() < store_size)
+  }
+}
