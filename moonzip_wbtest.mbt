@@ -946,3 +946,233 @@ test "G4: 100KB binary data round-trip ZIP level 6" {
   assert_eq(extracted.length(), 1)
   assert_true(bytes_equal(extracted[0].1, data))
 }
+
+// ============================================================
+// G-5: エッジケース網羅テスト
+// ============================================================
+
+///|
+test "G5: empty data all APIs" {
+  let data : FixedArray[Byte] = []
+  // DEFLATE
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_eq(dd.length(), 0)
+  // GZIP
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_eq(gd.length(), 0)
+  // Zlib
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_eq(zd.length(), 0)
+  // ZIP
+  let files : Array[(String, FixedArray[Byte])] = [("empty.bin", data)]
+  let za = @zip.zip_sync(files)
+  let ze = @zip.unzip_sync(za)
+  assert_eq(ze.length(), 1)
+  assert_eq(ze[0].1.length(), 0)
+  // decompress_sync via GZIP
+  let gd2 = decompress_sync(gc)
+  assert_eq(gd2.length(), 0)
+  // decompress_sync via Zlib
+  let zd2 = decompress_sync(zc)
+  assert_eq(zd2.length(), 0)
+  // decompress_sync via raw DEFLATE
+  let dd2 = decompress_sync(dc)
+  assert_eq(dd2.length(), 0)
+}
+
+///|
+test "G5: 1-byte data all APIs" {
+  let data : FixedArray[Byte] = [b'\xAB']
+  // DEFLATE
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  // GZIP
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+  // Zlib
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_true(bytes_equal(data, zd))
+  // ZIP
+  let files : Array[(String, FixedArray[Byte])] = [("one.bin", data)]
+  let za = @zip.zip_sync(files)
+  let ze = @zip.unzip_sync(za)
+  assert_eq(ze.length(), 1)
+  assert_true(bytes_equal(ze[0].1, data))
+}
+
+///|
+test "G5: all 0x00 1KB all formats" {
+  let data = FixedArray::make(1024, b'\x00')
+  // DEFLATE
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  // GZIP
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+  // Zlib
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_true(bytes_equal(data, zd))
+  // ZIP
+  let files : Array[(String, FixedArray[Byte])] = [("zeros.bin", data)]
+  let za = @zip.zip_sync(files)
+  let ze = @zip.unzip_sync(za)
+  assert_true(bytes_equal(ze[0].1, data))
+}
+
+///|
+test "G5: all 0xFF 1KB all formats" {
+  let data = FixedArray::make(1024, b'\xFF')
+  // DEFLATE
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  // GZIP
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+  // Zlib
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_true(bytes_equal(data, zd))
+  // ZIP
+  let files : Array[(String, FixedArray[Byte])] = [("ff.bin", data)]
+  let za = @zip.zip_sync(files)
+  let ze = @zip.unzip_sync(za)
+  assert_true(bytes_equal(ze[0].1, data))
+}
+
+///|
+test "G5: random data 1KB all formats" {
+  let data = pseudo_random_data(1024, 99)
+  // DEFLATE
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  // GZIP
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+  // Zlib
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_true(bytes_equal(data, zd))
+  // ZIP
+  let files : Array[(String, FixedArray[Byte])] = [("rand.bin", data)]
+  let za = @zip.zip_sync(files)
+  let ze = @zip.unzip_sync(za)
+  assert_true(bytes_equal(ze[0].1, data))
+}
+
+///|
+test "G5: 64KB boundary - 65534 bytes" {
+  let size = 65534
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = (i % 251).to_byte()
+  }
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+}
+
+///|
+test "G5: 64KB boundary - 65535 bytes" {
+  let size = 65535
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = (i % 251).to_byte()
+  }
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+}
+
+///|
+test "G5: 64KB boundary - 65536 bytes" {
+  let size = 65536
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = (i % 251).to_byte()
+  }
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+}
+
+///|
+test "G5: 64KB boundary - 65537 bytes" {
+  let size = 65537
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = (i % 251).to_byte()
+  }
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  let gc = @gzip.gzip_sync(data)
+  let gd = @gzip.gunzip_sync(gc)
+  assert_true(bytes_equal(data, gd))
+}
+
+///|
+test "G5: 32KB boundary - 32767 bytes" {
+  let size = 32767
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = (i % 251).to_byte()
+  }
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_true(bytes_equal(data, zd))
+}
+
+///|
+test "G5: 32KB boundary - 32768 bytes" {
+  let size = 32768
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = (i % 251).to_byte()
+  }
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_true(bytes_equal(data, zd))
+}
+
+///|
+test "G5: 32KB boundary - 32769 bytes" {
+  let size = 32769
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = (i % 251).to_byte()
+  }
+  let dc = @deflate.deflate_sync(data)
+  let dd = @deflate.inflate_sync(dc)
+  assert_true(bytes_equal(data, dd))
+  let zc = @zlib.zlib_sync(data)
+  let zd = @zlib.unzlib_sync(zc)
+  assert_true(bytes_equal(data, zd))
+}
