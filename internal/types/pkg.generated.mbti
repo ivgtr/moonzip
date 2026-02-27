@@ -61,6 +61,10 @@ pub(all) struct UnzipFileInfo {
   size : Int
   original_size : Int
   compression : Int
+  mtime : Int
+  attrs : Int
+  comment : String
+  extra : Map[Int, FixedArray[Byte]]
 }
 pub impl Show for UnzipFileInfo
 

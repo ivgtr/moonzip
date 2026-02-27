@@ -278,8 +278,8 @@ test "gzip: ISIZE mismatch error" {
 test "gzip: error on too short data (deflate_end < deflate_start)" {
   // Valid 10-byte header but not enough for 8-byte footer
   let data : FixedArray[Byte] = [
-    b'\x1F', b'\x8B', b'\x08', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00',
-    b'\x00', b'\xFF', b'\x00', b'\x00',
+    b'\x1F', b'\x8B', b'\x08', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00',
+    b'\xFF', b'\x00', b'\x00',
   ]
   let mut got_error = false
   try {
