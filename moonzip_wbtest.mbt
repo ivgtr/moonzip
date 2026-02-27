@@ -426,3 +426,107 @@ test "integration: cross-format decompress_sync" {
   let deflate_result = decompress_sync(deflate_compressed)
   assert_true(bytes_equal(data, deflate_result))
 }
+
+// === Phase F: compress_sync tests ===
+
+///|
+test "compress_sync: round-trip with decompress_sync" {
+  let data = string_to_bytes("Hello, compress_sync!")
+  let compressed = compress_sync(data)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: empty data round-trip" {
+  let data : FixedArray[Byte] = []
+  let compressed = compress_sync(data)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: output is valid GZIP" {
+  let data = string_to_bytes("Testing GZIP format")
+  let compressed = compress_sync(data)
+  // Verify GZIP magic number
+  assert_eq(compressed[0], b'\x1F')
+  assert_eq(compressed[1], b'\x8B')
+  // Decompress via gunzip_sync to verify
+  let decompressed = @gzip.gunzip_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: with custom options" {
+  let data = string_to_bytes("Custom options test")
+  let opts = @types.GzipOptions::{ ..@types.GzipOptions::default(), level: 9 }
+  let compressed = compress_sync(data, opts~)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: large data round-trip" {
+  let data = FixedArray::make(4096, b'\x00')
+  for i = 0; i < data.length(); i = i + 1 {
+    data[i] = (i % 256).to_byte()
+  }
+  let compressed = compress_sync(data)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+// === Phase F: strToU8 / strFromU8 re-export tests ===
+
+///|
+test "str_to_u8: ASCII via top-level" {
+  let result = str_to_u8("Hello")
+  assert_eq(result.length(), 5)
+  assert_eq(result[0], b'\x48')
+  assert_eq(result[4], b'\x6F')
+}
+
+///|
+test "str_to_u8: multi-byte via top-level" {
+  let result = str_to_u8("\u65E5\u672C")
+  // "日" = E6 97 A5, "本" = E6 9C AC = 6 bytes total
+  assert_eq(result.length(), 6)
+}
+
+///|
+test "str_from_u8: ASCII via top-level" {
+  let data : FixedArray[Byte] = [b'\x48', b'\x69']
+  let result = str_from_u8(data)
+  assert_eq(result, "Hi")
+}
+
+///|
+test "str_to_u8: latin1 via top-level" {
+  let result = str_to_u8("\u00E9", latin1=true)
+  assert_eq(result.length(), 1)
+  assert_eq(result[0], b'\xE9')
+}
+
+///|
+test "str_from_u8: latin1 via top-level" {
+  let data : FixedArray[Byte] = [b'\xE9']
+  let result = str_from_u8(data, latin1=true)
+  assert_eq(result, "\u00E9")
+}
+
+///|
+test "str round-trip: UTF-8 via top-level" {
+  let original = "Hello \u4E16\u754C!"
+  let bytes = str_to_u8(original)
+  let decoded = str_from_u8(bytes)
+  assert_eq(decoded, original)
+}
+
+///|
+test "str round-trip: latin1 via top-level" {
+  let original = "caf\u00E9"
+  let bytes = str_to_u8(original, latin1=true)
+  let decoded = str_from_u8(bytes, latin1=true)
+  assert_eq(decoded, original)
+}

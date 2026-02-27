@@ -1,9 +1,23 @@
 ///|
-/// Convert a string to UTF-8 byte array.
-/// MoonBit strings use UTF-16 internally, so we iterate over characters
-/// and encode each Unicode codepoint to 1-4 UTF-8 bytes.
-pub fn str_to_u8(s : String) -> FixedArray[Byte] {
-  // First pass: calculate total byte length
+/// Convert a string to a byte array.
+/// When latin1 is true, each character is truncated to its low 8 bits (Latin-1 encoding).
+/// When latin1 is false (default), full UTF-8 encoding is used.
+pub fn str_to_u8(s : String, latin1? : Bool = false) -> FixedArray[Byte] {
+  if latin1 {
+    // Latin-1: one byte per character, truncated to low 8 bits
+    let mut char_count = 0
+    for _c in s {
+      char_count += 1
+    }
+    let result = FixedArray::make(char_count, b'\x00')
+    let mut idx = 0
+    for c in s {
+      result[idx] = (c.to_int() & 0xFF).to_byte()
+      idx += 1
+    }
+    return result
+  }
+  // UTF-8: first pass to calculate total byte length
   let mut byte_len = 0
   for c in s {
     let cp = c.to_int()
@@ -51,9 +65,20 @@ fn is_continuation(b : Int) -> Bool {
 }
 
 ///|
-/// Convert UTF-8 byte array back to string.
-/// Validates UTF-8 sequences and raises InvalidUTF8 error on malformed input.
-pub fn str_from_u8(data : FixedArray[Byte]) -> String raise @types.FlateError {
+/// Convert a byte array back to string.
+/// When latin1 is true, each byte is treated as a Latin-1 character (0x00-0xFF).
+/// When latin1 is false (default), the data is decoded as UTF-8 with validation.
+pub fn str_from_u8(
+  data : FixedArray[Byte],
+  latin1? : Bool = false,
+) -> String raise @types.FlateError {
+  if latin1 {
+    let buf = StringBuilder::new()
+    for i = 0; i < data.length(); i = i + 1 {
+      buf.write_char(Int::unsafe_to_char(data[i].to_int() & 0xFF))
+    }
+    return buf.to_string()
+  }
   let buf = StringBuilder::new()
   let len = data.length()
   let mut i = 0
