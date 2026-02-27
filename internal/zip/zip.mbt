@@ -376,10 +376,7 @@ fn zh(
 // ============================================================
 
 ///|
-fn slzh(
-  data : FixedArray[Byte],
-  offset : Int,
-) -> Int raise @types.FlateError {
+fn slzh(data : FixedArray[Byte], offset : Int) -> Int raise @types.FlateError {
   let sl = data.length()
   if offset + 30 > sl {
     raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
@@ -582,14 +579,12 @@ pub fn unzip_list(
       entry_total_size,
     ) = zh(data, cd_pos)
     cd_pos = cd_pos + entry_total_size
-    result.push(
-      @types.UnzipFileInfo::{
-        name: filename,
-        size: compressed_size,
-        original_size: uncompressed_size,
-        compression,
-      },
-    )
+    result.push(@types.UnzipFileInfo::{
+      name: filename,
+      size: compressed_size,
+      original_size: uncompressed_size,
+      compression,
+    })
   }
   result
 }

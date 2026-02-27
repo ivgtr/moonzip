@@ -12,6 +12,8 @@ pub fn inflate_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArr
 
 pub fn inflt(FixedArray[Byte], Int) -> FixedArray[Byte] raise @types.FlateError
 
+pub fn inflt_pos(FixedArray[Byte], Int) -> (FixedArray[Byte], Int) raise @types.FlateError
+
 // Errors
 
 // Types and methods

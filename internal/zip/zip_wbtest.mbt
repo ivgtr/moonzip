@@ -413,9 +413,7 @@ test "zip: unzip_list multiple files with Store and Deflate" {
   let data2 = string_to_bytes(
     "Hello deflate test data that should be compressed well enough",
   )
-  let files_store : Array[(String, FixedArray[Byte])] = [
-    ("store.txt", data1),
-  ]
+  let files_store : Array[(String, FixedArray[Byte])] = [("store.txt", data1)]
   let files_deflate : Array[(String, FixedArray[Byte])] = [
     ("deflate.txt", data2),
   ]
@@ -508,9 +506,7 @@ test "zip: leap year date round-trip (2000-02-29)" {
 ///|
 test "zip: 4-byte UTF-8 emoji filename round-trip" {
   let data = string_to_bytes("emoji content")
-  let files : Array[(String, FixedArray[Byte])] = [
-    ("\u{1F4C1}test.txt", data),
-  ]
+  let files : Array[(String, FixedArray[Byte])] = [("\u{1F4C1}test.txt", data)]
   let archive = zip_sync(files)
   let result = unzip_sync(archive)
   assert_eq(result.length(), 1)

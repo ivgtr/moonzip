@@ -201,8 +201,8 @@ test "zlib: FDICT flag with valid data" {
   // CMF=0x78, FLG=0x20 (FDICT=1, FCHECK correct: (0x78*256+0x20)%31==0)
   // DICTID=4 bytes, then empty stored deflate block, then Adler32 of empty data
   let data : FixedArray[Byte] = [
-    b'\x78', b'\x20', b'\x00', b'\x00', b'\x00', b'\x00', b'\x01', b'\x00',
-    b'\x00', b'\xFF', b'\xFF', b'\x00', b'\x00', b'\x00', b'\x01',
+    b'\x78', b'\x20', b'\x00', b'\x00', b'\x00', b'\x00', b'\x01', b'\x00', b'\x00',
+    b'\xFF', b'\xFF', b'\x00', b'\x00', b'\x00', b'\x01',
   ]
   let result = @zlib.unzlib_sync(data)
   assert_eq(result.length(), 0)
