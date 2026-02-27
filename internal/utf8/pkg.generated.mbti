@@ -1,12 +1,14 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "ivgtr/moonzip"
+package "ivgtr/moonzip/internal/utf8"
 
 import {
   "ivgtr/moonzip/internal/types",
 }
 
 // Values
-pub fn decompress_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+pub fn str_from_u8(FixedArray[Byte]) -> String raise @types.FlateError
+
+pub fn str_to_u8(String) -> FixedArray[Byte]
 
 // Errors
 

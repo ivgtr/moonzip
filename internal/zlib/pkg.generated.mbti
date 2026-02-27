@@ -1,7 +1,18 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "ivgtr/moonzip/internal/zlib"
 
+import {
+  "ivgtr/moonzip/internal/types",
+}
+
 // Values
+pub fn unzlib_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn zlh(Int) -> FixedArray[Byte]
+
+pub fn zlib_sync(FixedArray[Byte], opts? : @types.ZlibOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn zls(FixedArray[Byte]) -> Int raise @types.FlateError
 
 // Errors
 

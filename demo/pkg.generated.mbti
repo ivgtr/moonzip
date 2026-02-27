@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "ivgtr/moonzip/demo"
+
+// Values
+pub fn deflate_compress(String) -> String
+
+pub fn deflate_decompress(String) -> String
+
+pub fn gzip_compress(String) -> String
+
+pub fn gzip_decompress(String) -> String
+
+pub fn unzip_list(String) -> String
+
+pub fn zlib_compress(String) -> String
+
+pub fn zlib_decompress(String) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

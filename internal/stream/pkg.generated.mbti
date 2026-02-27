@@ -1,0 +1,85 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "ivgtr/moonzip/internal/stream"
+
+import {
+  "ivgtr/moonzip/internal/types",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct DecompressStream {
+  buf : Array[FixedArray[Byte]]
+  output : Array[FixedArray[Byte]]
+  mut finished : Bool
+}
+pub fn DecompressStream::new() -> Self
+pub fn DecompressStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
+pub fn DecompressStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
+
+pub struct DeflateStream {
+  buf : Array[FixedArray[Byte]]
+  output : Array[FixedArray[Byte]]
+  mut finished : Bool
+  level : Int
+  mem : Int
+}
+pub fn DeflateStream::new(level? : Int, mem? : Int) -> Self
+pub fn DeflateStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
+pub fn DeflateStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
+
+pub struct GunzipStream {
+  buf : Array[FixedArray[Byte]]
+  output : Array[FixedArray[Byte]]
+  mut finished : Bool
+}
+pub fn GunzipStream::new() -> Self
+pub fn GunzipStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
+pub fn GunzipStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
+
+pub struct GzipStream {
+  buf : Array[FixedArray[Byte]]
+  output : Array[FixedArray[Byte]]
+  mut finished : Bool
+  level : Int
+  mem : Int
+}
+pub fn GzipStream::new(level? : Int, mem? : Int) -> Self
+pub fn GzipStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
+pub fn GzipStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
+
+pub struct InflateStream {
+  buf : Array[FixedArray[Byte]]
+  output : Array[FixedArray[Byte]]
+  mut finished : Bool
+}
+pub fn InflateStream::new() -> Self
+pub fn InflateStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
+pub fn InflateStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
+
+pub struct UnzlibStream {
+  buf : Array[FixedArray[Byte]]
+  output : Array[FixedArray[Byte]]
+  mut finished : Bool
+}
+pub fn UnzlibStream::new() -> Self
+pub fn UnzlibStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
+pub fn UnzlibStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
+
+pub struct ZlibStream {
+  buf : Array[FixedArray[Byte]]
+  output : Array[FixedArray[Byte]]
+  mut finished : Bool
+  level : Int
+  mem : Int
+}
+pub fn ZlibStream::new(level? : Int, mem? : Int) -> Self
+pub fn ZlibStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
+pub fn ZlibStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
+
+// Type aliases
+
+// Traits
+

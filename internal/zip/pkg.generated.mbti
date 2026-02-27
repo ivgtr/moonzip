@@ -1,7 +1,16 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "ivgtr/moonzip/internal/zip"
 
+import {
+  "ivgtr/moonzip/internal/types",
+}
+
 // Values
+pub fn unzip_list(FixedArray[Byte]) -> Array[@types.UnzipFileInfo] raise @types.FlateError
+
+pub fn unzip_sync(FixedArray[Byte]) -> Array[(String, FixedArray[Byte])] raise @types.FlateError
+
+pub fn zip_sync(Array[(String, FixedArray[Byte])], opts? : @types.ZipOptions) -> FixedArray[Byte] raise @types.FlateError
 
 // Errors
 

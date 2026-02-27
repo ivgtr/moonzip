@@ -34,8 +34,8 @@ fn bytes_equal(a : FixedArray[Byte], b : FixedArray[Byte]) -> Bool {
 test "zip: single file round-trip" {
   let data = string_to_bytes("Hello, ZIP!")
   let files : Array[(String, FixedArray[Byte])] = [("hello.txt", data)]
-  let archive = @zip.zip_sync(files)
-  let result = @zip.unzip_sync(archive)
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 1)
   let (name, content) = result[0]
   assert_eq(name, "hello.txt")
@@ -52,8 +52,8 @@ test "zip: multiple files round-trip" {
     ("dir/file2.txt", data2),
     ("binary.bin", data3),
   ]
-  let archive = @zip.zip_sync(files)
-  let result = @zip.unzip_sync(archive)
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 3)
   let (n1, c1) = result[0]
   assert_eq(n1, "file1.txt")
@@ -70,8 +70,8 @@ test "zip: multiple files round-trip" {
 test "zip: empty file round-trip" {
   let data : FixedArray[Byte] = []
   let files : Array[(String, FixedArray[Byte])] = [("empty.txt", data)]
-  let archive = @zip.zip_sync(files)
-  let result = @zip.unzip_sync(archive)
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 1)
   let (name, content) = result[0]
   assert_eq(name, "empty.txt")
@@ -81,8 +81,8 @@ test "zip: empty file round-trip" {
 ///|
 test "zip: empty archive (no files)" {
   let files : Array[(String, FixedArray[Byte])] = []
-  let archive = @zip.zip_sync(files)
-  let result = @zip.unzip_sync(archive)
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 0)
 }
 
@@ -92,8 +92,8 @@ test "zip: empty archive (no files)" {
 test "zip: td/dt round-trip" {
   // 2023-11-14 12:30:00 UTC
   let ts = 1700000000 - 1700000000 % 2 // Ensure even seconds (DOS has 2s granularity)
-  let (date, time) = @zip.td(ts)
-  let recovered = @zip.dt(date, time)
+  let (date, time) = td(ts)
+  let recovered = dt(date, time)
   assert_eq(recovered, ts)
 }
 
@@ -101,8 +101,8 @@ test "zip: td/dt round-trip" {
 test "zip: td/dt boundary 1980-01-01" {
   // 1980-01-01 00:00:00 UTC = 315532800
   let ts = 315532800
-  let (date, time) = @zip.td(ts)
-  let recovered = @zip.dt(date, time)
+  let (date, time) = td(ts)
+  let recovered = dt(date, time)
   assert_eq(recovered, ts)
   // Date should encode year=0 (1980), month=1, day=1
   let year = (date >> 9) & 0x7F
@@ -137,16 +137,16 @@ test "zip: td/dt boundary 2037-12-31" {
   // Dec 31 (day 30 zero-indexed)
   total_days = total_days + 30
   let ts = total_days * 86400 + 23 * 3600 + 59 * 60 + 58
-  let (date, time) = @zip.td(ts)
-  let recovered = @zip.dt(date, time)
+  let (date, time) = td(ts)
+  let recovered = dt(date, time)
   assert_eq(recovered, ts)
 }
 
 ///|
 test "zip: td clamps pre-1980 timestamps" {
   // Timestamp before 1980 should be clamped to 1980-01-01
-  let (date, time) = @zip.td(0)
-  let recovered = @zip.dt(date, time)
+  let (date, time) = td(0)
+  let recovered = dt(date, time)
   assert_eq(recovered, 315532800) // 1980-01-01 00:00:00
 }
 
@@ -156,7 +156,7 @@ test "zip: td clamps pre-1980 timestamps" {
 test "zip: local file header magic number" {
   let data = string_to_bytes("test data")
   let files : Array[(String, FixedArray[Byte])] = [("test.txt", data)]
-  let archive = @zip.zip_sync(files)
+  let archive = zip_sync(files)
   // First 4 bytes should be Local File Header signature
   assert_eq(archive[0], b'\x50')
   assert_eq(archive[1], b'\x4B')
@@ -168,7 +168,7 @@ test "zip: local file header magic number" {
 test "zip: EOCD signature present" {
   let data = string_to_bytes("test")
   let files : Array[(String, FixedArray[Byte])] = [("t.txt", data)]
-  let archive = @zip.zip_sync(files)
+  let archive = zip_sync(files)
   // Find EOCD signature by scanning from end
   let sl = archive.length()
   let mut found = false
@@ -188,7 +188,7 @@ test "zip: EOCD signature present" {
 test "zip: central directory signature present" {
   let data = string_to_bytes("test")
   let files : Array[(String, FixedArray[Byte])] = [("t.txt", data)]
-  let archive = @zip.zip_sync(files)
+  let archive = zip_sync(files)
   // Find CD entry signature
   let sl = archive.length()
   let mut found = false
@@ -210,7 +210,7 @@ test "zip: central directory signature present" {
 test "zip: level 0 uses Store compression" {
   let data = string_to_bytes("Hello store")
   let files : Array[(String, FixedArray[Byte])] = [("store.txt", data)]
-  let archive = @zip.zip_sync(files, opts=@types.ZipOptions::{
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     level: 0,
   })
@@ -218,7 +218,7 @@ test "zip: level 0 uses Store compression" {
   let comp = archive[8].to_int() | (archive[9].to_int() << 8)
   assert_eq(comp, 0)
   // Round-trip verification
-  let result = @zip.unzip_sync(archive)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 1)
   let (_, content) = result[0]
   assert_true(bytes_equal(data, content))
@@ -230,7 +230,7 @@ test "zip: level 6 uses Deflate compression" {
     "Hello deflate test data that should be compressed",
   )
   let files : Array[(String, FixedArray[Byte])] = [("deflate.txt", data)]
-  let archive = @zip.zip_sync(files, opts=@types.ZipOptions::{
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     level: 6,
   })
@@ -238,7 +238,7 @@ test "zip: level 6 uses Deflate compression" {
   let comp = archive[8].to_int() | (archive[9].to_int() << 8)
   assert_eq(comp, 8)
   // Round-trip verification
-  let result = @zip.unzip_sync(archive)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 1)
   let (_, content) = result[0]
   assert_true(bytes_equal(data, content))
@@ -248,7 +248,7 @@ test "zip: level 6 uses Deflate compression" {
 test "zip: empty file uses Store regardless of level" {
   let data : FixedArray[Byte] = []
   let files : Array[(String, FixedArray[Byte])] = [("empty.txt", data)]
-  let archive = @zip.zip_sync(files, opts=@types.ZipOptions::{
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     level: 9,
   })
@@ -265,12 +265,12 @@ test "zip: UTF-8 filename sets bit 11 flag" {
   let files : Array[(String, FixedArray[Byte])] = [
     ("\u{3053}\u{3093}\u{306B}\u{3061}\u{306F}.txt", data),
   ]
-  let archive = @zip.zip_sync(files)
+  let archive = zip_sync(files)
   // Check flags in Local File Header (offset 6-7)
   let flags = archive[6].to_int() | (archive[7].to_int() << 8)
   assert_true((flags & 0x800) != 0)
   // Round-trip should preserve the filename
-  let result = @zip.unzip_sync(archive)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 1)
   let (name, _) = result[0]
   assert_eq(name, "\u{3053}\u{3093}\u{306B}\u{3061}\u{306F}.txt")
@@ -280,7 +280,7 @@ test "zip: UTF-8 filename sets bit 11 flag" {
 test "zip: ASCII filename does not set bit 11 flag" {
   let data = string_to_bytes("data")
   let files : Array[(String, FixedArray[Byte])] = [("ascii.txt", data)]
-  let archive = @zip.zip_sync(files)
+  let archive = zip_sync(files)
   // Check flags in Local File Header (offset 6-7)
   let flags = archive[6].to_int() | (archive[7].to_int() << 8)
   assert_true((flags & 0x800) == 0)
@@ -294,7 +294,7 @@ test "zip: error on invalid EOCD" {
   let mut got_error = false
   let mut error_code : @types.FlateErrorCode = @types.FlateErrorCode::UnexpectedEOF
   try {
-    let _ = @zip.unzip_sync(data)
+    let _ = unzip_sync(data)
   } catch {
     @types.FlateError(code) => {
       got_error = true
@@ -311,7 +311,7 @@ test "zip: error on truncated data" {
   let data : FixedArray[Byte] = [b'\x50', b'\x4B', b'\x05', b'\x06']
   let mut got_error = false
   try {
-    let _ = @zip.unzip_sync(data)
+    let _ = unzip_sync(data)
   } catch {
     @types.FlateError(_) => got_error = true
   }
@@ -323,7 +323,7 @@ test "zip: error on unknown compression method" {
   // Create a valid-looking ZIP with unknown compression method
   let data = string_to_bytes("test")
   let files : Array[(String, FixedArray[Byte])] = [("test.txt", data)]
-  let archive_orig = @zip.zip_sync(files, opts=@types.ZipOptions::{
+  let archive_orig = zip_sync(files, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     level: 0,
   })
@@ -348,7 +348,7 @@ test "zip: error on unknown compression method" {
   let mut got_error = false
   let mut error_code : @types.FlateErrorCode = @types.FlateErrorCode::UnexpectedEOF
   try {
-    let _ = @zip.unzip_sync(archive)
+    let _ = unzip_sync(archive)
   } catch {
     @types.FlateError(code) => {
       got_error = true
@@ -365,7 +365,7 @@ test "zip: error on unknown compression method" {
 test "zip: CRC32 mismatch detected" {
   let data = string_to_bytes("Hello CRC check")
   let files : Array[(String, FixedArray[Byte])] = [("crc.txt", data)]
-  let archive_orig = @zip.zip_sync(files, opts=@types.ZipOptions::{
+  let archive_orig = zip_sync(files, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     level: 0,
   })
@@ -381,7 +381,7 @@ test "zip: CRC32 mismatch detected" {
   let mut got_error = false
   let mut error_code : @types.FlateErrorCode = @types.FlateErrorCode::UnexpectedEOF
   try {
-    let _ = @zip.unzip_sync(archive)
+    let _ = unzip_sync(archive)
   } catch {
     @types.FlateError(code) => {
       got_error = true
@@ -398,8 +398,8 @@ test "zip: CRC32 mismatch detected" {
 test "zip: 1KB data round-trip" {
   let data = fill_bytes(b'\xCD', 1024)
   let files : Array[(String, FixedArray[Byte])] = [("large.bin", data)]
-  let archive = @zip.zip_sync(files)
-  let result = @zip.unzip_sync(archive)
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
   assert_eq(result.length(), 1)
   let (_, content) = result[0]
   assert_true(bytes_equal(data, content))
@@ -419,23 +419,23 @@ test "zip: unzip_list multiple files with Store and Deflate" {
   let files_deflate : Array[(String, FixedArray[Byte])] = [
     ("deflate.txt", data2),
   ]
-  let archive_store = @zip.zip_sync(files_store, opts=@types.ZipOptions::{
+  let archive_store = zip_sync(files_store, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     level: 0,
   })
-  let archive_deflate = @zip.zip_sync(files_deflate, opts=@types.ZipOptions::{
+  let archive_deflate = zip_sync(files_deflate, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     level: 6,
   })
   // Test Store archive
-  let list_store = @zip.unzip_list(archive_store)
+  let list_store = unzip_list(archive_store)
   assert_eq(list_store.length(), 1)
   assert_eq(list_store[0].name, "store.txt")
   assert_eq(list_store[0].original_size, data1.length())
   assert_eq(list_store[0].size, data1.length())
   assert_eq(list_store[0].compression, 0)
   // Test Deflate archive
-  let list_deflate = @zip.unzip_list(archive_deflate)
+  let list_deflate = unzip_list(archive_deflate)
   assert_eq(list_deflate.length(), 1)
   assert_eq(list_deflate[0].name, "deflate.txt")
   assert_eq(list_deflate[0].original_size, data2.length())
@@ -453,8 +453,8 @@ test "zip: unzip_list multiple files in single archive" {
     ("dir/b.txt", data2),
     ("c.bin", data3),
   ]
-  let archive = @zip.zip_sync(files)
-  let list = @zip.unzip_list(archive)
+  let archive = zip_sync(files)
+  let list = unzip_list(archive)
   assert_eq(list.length(), 3)
   assert_eq(list[0].name, "a.txt")
   assert_eq(list[0].original_size, data1.length())
@@ -467,8 +467,8 @@ test "zip: unzip_list multiple files in single archive" {
 ///|
 test "zip: unzip_list empty archive" {
   let files : Array[(String, FixedArray[Byte])] = []
-  let archive = @zip.zip_sync(files)
-  let list = @zip.unzip_list(archive)
+  let archive = zip_sync(files)
+  let list = unzip_list(archive)
   assert_eq(list.length(), 0)
 }
 
@@ -479,14 +479,14 @@ test "zip: mtime option is written correctly" {
   let data = string_to_bytes("time test")
   let mtime = 1700000000
   let files : Array[(String, FixedArray[Byte])] = [("time.txt", data)]
-  let archive = @zip.zip_sync(files, opts=@types.ZipOptions::{
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
     ..@types.ZipOptions::default(),
     mtime: Some(mtime),
   })
   // Read DOS time and date from Local File Header
   let dos_time_read = archive[10].to_int() | (archive[11].to_int() << 8)
   let dos_date_read = archive[12].to_int() | (archive[13].to_int() << 8)
-  let (expected_date, expected_time) = @zip.td(mtime)
+  let (expected_date, expected_time) = td(mtime)
   assert_eq(dos_time_read, expected_time)
   assert_eq(dos_date_read, expected_date)
 }

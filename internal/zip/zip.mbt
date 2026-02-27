@@ -14,11 +14,7 @@ let month_days : FixedArray[Int] = [
 ]
 
 ///|
-/// Convert Unix timestamp (seconds since 1970-01-01) to MS-DOS date and time.
-/// Returns (DOS date, DOS time).
-/// DOS date: bits [15:9]=year-1980, [8:5]=month(1-12), [4:0]=day(1-31)
-/// DOS time: bits [15:11]=hour(0-23), [10:5]=minute(0-59), [4:0]=second/2(0-29)
-pub fn td(unix_ts : Int) -> (Int, Int) {
+fn td(unix_ts : Int) -> (Int, Int) {
   // Handle timestamps before DOS epoch (1980-01-01)
   let ts = if unix_ts < 315532800 { 315532800 } else { unix_ts }
   // Calculate seconds within the day
@@ -65,8 +61,7 @@ fn is_leap(year : Int) -> Bool {
 }
 
 ///|
-/// Convert MS-DOS date and time to Unix timestamp (seconds since 1970-01-01).
-pub fn dt(date : Int, time : Int) -> Int {
+fn dt(date : Int, time : Int) -> Int {
   let year = ((date >> 9) & 0x7F) + 1980
   let month = (date >> 5) & 0x0F
   let day = date & 0x1F
@@ -191,9 +186,7 @@ fn utf8_to_string(
 // ============================================================
 
 ///|
-/// Write a Local File Header to the output buffer.
-/// Returns the number of bytes written.
-pub fn wzh(
+fn wzh(
   out : FixedArray[Byte],
   out_offset : Int,
   filename : FixedArray[Byte],
@@ -300,9 +293,7 @@ fn write_cd_entry(
 // ============================================================
 
 ///|
-/// Write End of Central Directory record.
-/// Returns the number of bytes written.
-pub fn wzf(
+fn wzf(
   out : FixedArray[Byte],
   out_offset : Int,
   entry_count : Int,
@@ -339,10 +330,7 @@ pub fn wzf(
 // ============================================================
 
 ///|
-/// Parse a Central Directory entry at the given offset.
-/// Returns (filename, compression, crc, compressed_size, uncompressed_size,
-///          local_header_offset, entry_total_size).
-pub fn zh(
+fn zh(
   data : FixedArray[Byte],
   offset : Int,
 ) -> (String, Int, Int, Int, Int, Int, Int) raise @types.FlateError {
@@ -387,9 +375,7 @@ pub fn zh(
 // ============================================================
 
 ///|
-/// Parse a Local File Header at the given offset.
-/// Returns the offset where file data starts.
-pub fn slzh(
+fn slzh(
   data : FixedArray[Byte],
   offset : Int,
 ) -> Int raise @types.FlateError {
