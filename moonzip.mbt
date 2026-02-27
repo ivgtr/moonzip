@@ -1,4 +1,14 @@
 ///|
+/// Compress data using GZIP format.
+/// Alias for gzip_sync, compatible with fflate's compressSync.
+pub fn compress_sync(
+  data : FixedArray[Byte],
+  opts? : @types.GzipOptions = @types.GzipOptions::default(),
+) -> FixedArray[Byte] raise @types.FlateError {
+  @gzip.gzip_sync(data, opts~)
+}
+
+///|
 /// Auto-detect format and decompress data.
 /// Tries GZIP (0x1F 0x8B), then Zlib (valid CMF/FLG), then raw DEFLATE.
 pub fn decompress_sync(

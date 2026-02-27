@@ -382,3 +382,53 @@ test "integration: cross-format decompress_sync" {
   let deflate_result = decompress_sync(deflate_compressed)
   assert_true(bytes_equal(data, deflate_result))
 }
+
+// === Phase F: compress_sync tests ===
+
+///|
+test "compress_sync: round-trip with decompress_sync" {
+  let data = string_to_bytes("Hello, compress_sync!")
+  let compressed = compress_sync(data)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: empty data round-trip" {
+  let data : FixedArray[Byte] = []
+  let compressed = compress_sync(data)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: output is valid GZIP" {
+  let data = string_to_bytes("Testing GZIP format")
+  let compressed = compress_sync(data)
+  // Verify GZIP magic number
+  assert_eq(compressed[0], b'\x1F')
+  assert_eq(compressed[1], b'\x8B')
+  // Decompress via gunzip_sync to verify
+  let decompressed = @gzip.gunzip_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: with custom options" {
+  let data = string_to_bytes("Custom options test")
+  let opts = @types.GzipOptions::{ ..@types.GzipOptions::default(), level: 9 }
+  let compressed = compress_sync(data, opts~)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "compress_sync: large data round-trip" {
+  let data = FixedArray::make(4096, b'\x00')
+  for i = 0; i < data.length(); i = i + 1 {
+    data[i] = (i % 256).to_byte()
+  }
+  let compressed = compress_sync(data)
+  let decompressed = decompress_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
