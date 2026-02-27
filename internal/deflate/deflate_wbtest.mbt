@@ -245,20 +245,16 @@ test "dopt: clamps negative mem to 0" {
 }
 
 ///|
-test "deflate: dictionary option raises error" {
+test "deflate: dictionary option accepted without error" {
   let data = string_to_bytes("test")
   let dict : FixedArray[Byte] = [b'\x01', b'\x02', b'\x03']
-  let mut got_error = false
-  try {
-    let _ = deflate_sync(data, opts=@types.DeflateOptions::{
-      level: 6,
-      mem: 4,
-      dictionary: Some(dict),
-    })
-  } catch {
-    @types.FlateError(_) => got_error = true
-  }
-  assert_true(got_error)
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    level: 6,
+    mem: 4,
+    dictionary: Some(dict),
+  })
+  let decompressed = inflate_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
@@ -280,5 +276,88 @@ test "inflate: with size hint" {
     size: Some(data.length()),
     dictionary: None,
   })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+// === Phase B: Dictionary tests ===
+
+// B-T1: Dictionary round-trip
+
+///|
+test "deflate: dictionary round-trip" {
+  let dict = string_to_bytes("the quick brown fox jumps over the lazy dog")
+  let data = string_to_bytes("the quick brown fox jumps over the lazy cat")
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    level: 6,
+    mem: 4,
+    dictionary: Some(dict),
+  })
+  let decompressed = inflate_sync(compressed, opts=@types.InflateOptions::{
+    size: None,
+    dictionary: Some(dict),
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "deflate: dictionary round-trip with empty data" {
+  let dict = string_to_bytes("some dictionary content")
+  let data : FixedArray[Byte] = []
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    level: 6,
+    mem: 4,
+    dictionary: Some(dict),
+  })
+  let decompressed = inflate_sync(compressed, opts=@types.InflateOptions::{
+    size: None,
+    dictionary: Some(dict),
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "deflate: dictionary round-trip level 0" {
+  let dict = string_to_bytes("dictionary data")
+  let data = string_to_bytes("some test data")
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    level: 0,
+    mem: 4,
+    dictionary: Some(dict),
+  })
+  let decompressed = inflate_sync(compressed, opts=@types.InflateOptions::{
+    size: None,
+    dictionary: Some(dict),
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "deflate: large dictionary truncated to 32KB" {
+  // Dictionary larger than 32KB - only last 32KB should be used
+  let dict = FixedArray::make(40000, b'\x00')
+  for i = 0; i < 40000; i = i + 1 {
+    dict[i] = (i % 256).to_byte()
+  }
+  let data = string_to_bytes("test data with large dictionary")
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    level: 6,
+    mem: 4,
+    dictionary: Some(dict),
+  })
+  let decompressed = inflate_sync(compressed, opts=@types.InflateOptions::{
+    size: None,
+    dictionary: Some(dict),
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+// B-T2: Dictionary mismatch tests
+
+///|
+test "deflate: inflate without dictionary when compressed without dictionary" {
+  let data = string_to_bytes("Hello world!")
+  let compressed = deflate_sync(data)
+  // No dictionary needed - should decompress normally
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }

@@ -10,7 +10,7 @@ pub fn deflate_sync(FixedArray[Byte], opts? : @types.DeflateOptions) -> FixedArr
 
 pub fn inflate_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
 
-pub fn inflt(FixedArray[Byte], Int) -> FixedArray[Byte] raise @types.FlateError
+pub fn inflt(FixedArray[Byte], Int, dictionary? : FixedArray[Byte]?) -> FixedArray[Byte] raise @types.FlateError
 
 // Errors
 
