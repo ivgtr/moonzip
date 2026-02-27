@@ -2,6 +2,16 @@
 
 A MoonBit compression library compatible with [fflate](https://github.com/101arrowz/fflate).
 
+fflate Sync API compatibility: 100% (27/27)
+
+| Category        | Coverage |
+| --------------- | -------- |
+| Sync functions  | 12 / 12  |
+| Sync streaming  | 13 / 13  |
+| Utility         | 2 / 2   |
+
+> Async APIs (Web Worker-based) are out of scope for MoonBit/WASM runtime.
+
 ## Supported Formats
 
 | Format  | RFC/Spec       | Compress | Decompress | Streaming |
@@ -54,7 +64,7 @@ let compressed = @moonzip.gzip_sync(data, opts={
 })
 
 // Decompress (handles single and multi-member streams)
-let decompressed = @moonzip.gunzip_sync(compressed)
+let decompressed = @moonzip.gunzip_sync(compressed, opts={ dictionary: None })
 
 // Alias: compress_sync = gzip_sync
 let compressed = @moonzip.compress_sync(data)
@@ -69,11 +79,12 @@ Supports preset dictionaries via FDICT flag.
 let compressed = @moonzip.zlib_sync(data, opts={ level: 6, mem: 4, dictionary: None })
 
 // Decompress
-let decompressed = @moonzip.unzlib_sync(compressed)
+let decompressed = @moonzip.unzlib_sync(compressed, opts={ dictionary: None })
 
 // With dictionary
 let dict = @moonzip.str_to_u8("common words here")
 let compressed = @moonzip.zlib_sync(data, opts={ level: 6, mem: 4, dictionary: Some(dict) })
+let decompressed = @moonzip.unzlib_sync(compressed, opts={ dictionary: Some(dict) })
 ```
 
 ### ZIP
@@ -86,6 +97,13 @@ let files : Array[(String, FixedArray[Byte])] = [
 ]
 let archive = @moonzip.zip_sync(files, opts={ level: 6, mtime: None, comment: None })
 
+// Per-entry options
+let entry_opts : Array[@types.ZipEntryOptions?] = [
+  Some({ level: 0, mtime: None, comment: None, extra: None }),  // Store without compression
+  None,  // Use global opts
+]
+let archive = @moonzip.zip_sync(files, opts={ level: 6, mtime: None, comment: None }, entry_opts~)
+
 // List entries
 let entries = @moonzip.unzip_list(archive)
 // entries[i].name, entries[i].size, entries[i].original_size, entries[i].compression,
@@ -94,6 +112,9 @@ let entries = @moonzip.unzip_list(archive)
 // Extract all
 let extracted = @moonzip.unzip_sync(archive)
 // extracted[i].0 = filename, extracted[i].1 = data
+
+// Extract with filter
+let txt_only = @moonzip.unzip_sync(archive, filter=fn(info) { info.name.contains(".txt") })
 ```
 
 ### Auto-detect Decompression
@@ -161,7 +182,7 @@ let adl = @moonzip.adler32(data)
 
 ### Error Handling
 
-All compression/decompression functions raise `@types.FlateError`. Error codes (0-14) match fflate's `FlateErrorCode`:
+Decompression functions (`inflate_sync`, `gunzip_sync`, `decompress_sync`, `unzlib_sync`, `unzip_sync`, `unzip_list`, `str_from_u8`) raise `@types.FlateError`. Compression functions are infallible. Error codes (0-14) match fflate's `FlateErrorCode`:
 
 | Code | Name                      |
 | ---- | ------------------------- |
