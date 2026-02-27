@@ -93,6 +93,7 @@ pub fn zlib_sync(
 /// Validates header, decompresses DEFLATE payload, and verifies Adler-32 footer.
 pub fn unzlib_sync(
   data : FixedArray[Byte],
+  opts? : @types.InflateOptions = @types.InflateOptions::default(),
 ) -> FixedArray[Byte] raise @types.FlateError {
   let offset = zls(data)
   // Need at least offset + 4 bytes for footer
@@ -105,7 +106,7 @@ pub fn unzlib_sync(
   for i = 0; i < payload_len; i = i + 1 {
     payload[i] = data[offset + i]
   }
-  let decompressed = @deflate.inflt(payload, 0)
+  let decompressed = @deflate.inflate_sync(payload, opts~)
   // Read and verify Adler-32 footer (big-endian)
   let footer_offset = data.length() - 4
   let stored_adler = (data[footer_offset].to_uint() << 24) |

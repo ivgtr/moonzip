@@ -275,11 +275,33 @@ test "gzip: ISIZE mismatch error" {
 }
 
 ///|
+test "gzip: gunzip_sync with size hint" {
+  let data = string_to_bytes("Hello world!")
+  let compressed = @gzip.gzip_sync(data)
+  let decompressed = @gzip.gunzip_sync(compressed, opts=@types.InflateOptions::{
+    size: Some(12),
+    dictionary: None,
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "gzip: gunzip_sync with default opts" {
+  let data = string_to_bytes("test opts default")
+  let compressed = @gzip.gzip_sync(data)
+  let decompressed = @gzip.gunzip_sync(
+    compressed,
+    opts=@types.InflateOptions::default(),
+  )
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
 test "gzip: error on too short data (deflate_end < deflate_start)" {
   // Valid 10-byte header but not enough for 8-byte footer
   let data : FixedArray[Byte] = [
-    b'\x1F', b'\x8B', b'\x08', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00',
-    b'\x00', b'\xFF', b'\x00', b'\x00',
+    b'\x1F', b'\x8B', b'\x08', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00',
+    b'\xFF', b'\x00', b'\x00',
   ]
   let mut got_error = false
   try {

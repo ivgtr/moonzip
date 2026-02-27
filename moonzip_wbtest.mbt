@@ -367,6 +367,50 @@ test "integration: deflate 64KB boundary" {
 }
 
 ///|
+test "decompressSync: with size hint via GZIP" {
+  let data = string_to_bytes("decompress with opts")
+  let compressed = @gzip.gzip_sync(data)
+  let decompressed = decompress_sync(compressed, opts=@types.InflateOptions::{
+    size: Some(20),
+    dictionary: None,
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "decompressSync: with size hint via Zlib" {
+  let data = string_to_bytes("decompress with opts zlib")
+  let compressed = @zlib.zlib_sync(data)
+  let decompressed = decompress_sync(compressed, opts=@types.InflateOptions::{
+    size: Some(25),
+    dictionary: None,
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "decompressSync: with size hint via raw DEFLATE" {
+  let data = string_to_bytes("decompress with opts deflate")
+  let compressed = @deflate.deflate_sync(data)
+  let decompressed = decompress_sync(compressed, opts=@types.InflateOptions::{
+    size: Some(28),
+    dictionary: None,
+  })
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
+test "decompressSync: with default opts" {
+  let data = string_to_bytes("decompress default opts")
+  let compressed = @gzip.gzip_sync(data)
+  let decompressed = decompress_sync(
+    compressed,
+    opts=@types.InflateOptions::default(),
+  )
+  assert_true(bytes_equal(data, decompressed))
+}
+
+///|
 test "integration: cross-format decompress_sync" {
   let data = string_to_bytes("Cross-format test data for decompress_sync")
   // GZIP format

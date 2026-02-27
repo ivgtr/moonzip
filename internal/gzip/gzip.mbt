@@ -287,6 +287,7 @@ pub fn gzip_sync(
 /// Returns decompressed data.
 pub fn gunzip_sync(
   data : FixedArray[Byte],
+  opts? : @types.InflateOptions = @types.InflateOptions::default(),
 ) -> FixedArray[Byte] raise @types.FlateError {
   // Parse header to find DEFLATE data start
   let deflate_start = gzs(data)
@@ -302,7 +303,7 @@ pub fn gunzip_sync(
     deflate_data[i] = data[deflate_start + i]
   }
   // Decompress
-  let decompressed = @deflate.inflate_sync(deflate_data)
+  let decompressed = @deflate.inflate_sync(deflate_data, opts~)
   // Verify footer
   gzl(data, decompressed)
   decompressed
