@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "readme": "README.mbt.md",
   "repository": "https://github.com/ivgtr/moonzip",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "keywords": ["compression", "deflate", "gzip", "zlib", "zip"],
   "description": "A MoonBit compression library compatible with fflate"
 }
