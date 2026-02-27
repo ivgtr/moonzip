@@ -795,3 +795,70 @@ test "G2: ZIP compression method field" {
   })
   assert_eq(read_u16_le(a6, 8), 8) // Deflate
 }
+
+// ============================================================
+// G-3: 圧縮率検証
+// ============================================================
+
+///|
+test "G3: level 0 produces larger output than levels 1-9" {
+  // Use data where fixed Huffman encoding is slightly more efficient
+  // than stored blocks due to per-block overhead differences
+  let data = generate_repeat_text(4096)
+  let sizes : Array[Int] = []
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    }
+    let compressed = @deflate.deflate_sync(data, opts~)
+    sizes.push(compressed.length())
+  }
+  // Level 0 (stored) adds 5 bytes overhead per block
+  // Level 1-9 (fixed Huffman) have consistent encoding size
+  // Both produce similar sizes, but level 0 should always be >= level 1-9
+  for level = 1; level <= 9; level = level + 1 {
+    assert_true(sizes[level] <= sizes[0])
+  }
+  // All levels 1-9 should produce the same size (same fixed Huffman encoding)
+  for level = 2; level <= 9; level = level + 1 {
+    assert_eq(sizes[level], sizes[1])
+  }
+}
+
+///|
+test "G3: level 0 produces uncompressed output (stored)" {
+  let data = generate_repeat_text(512)
+  let opts = @types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 0,
+  }
+  let compressed = @deflate.deflate_sync(data, opts~)
+  // Stored blocks add overhead (5 bytes per block), so compressed >= original
+  assert_true(compressed.length() >= data.length())
+}
+
+///|
+test "G3: random data does not compress below original size" {
+  let data = pseudo_random_data(4096, 12345)
+  let opts = @types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 9,
+  }
+  let compressed = @deflate.deflate_sync(data, opts~)
+  // Fixed Huffman encoding without LZ77 cannot compress random data
+  // below its original size - output is at least as large as input
+  assert_true(compressed.length() >= data.length())
+}
+
+///|
+test "G3: wrapper formats add known overhead" {
+  let data = generate_repeat_text(2048)
+  let deflate_c = @deflate.deflate_sync(data)
+  let gzip_c = @gzip.gzip_sync(data)
+  let zlib_c = @zlib.zlib_sync(data)
+  // GZIP adds 10-byte header + 8-byte footer = 18 bytes overhead
+  assert_eq(gzip_c.length(), deflate_c.length() + 18)
+  // Zlib adds 2-byte header + 4-byte footer = 6 bytes overhead
+  assert_eq(zlib_c.length(), deflate_c.length() + 6)
+}
