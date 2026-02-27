@@ -107,6 +107,75 @@ test "str_from_u8: truncated multi-byte" {
   assert_true(caught)
 }
 
+// === Latin-1 Tests ===
+
+///|
+test "str_to_u8: latin1 ASCII" {
+  let result = @utf8.str_to_u8("Hello", latin1=true)
+  let expected : FixedArray[Byte] = [
+    b'\x48', b'\x65', b'\x6C', b'\x6C', b'\x6F',
+  ]
+  assert_eq(result.length(), expected.length())
+  for i = 0; i < result.length(); i = i + 1 {
+    assert_eq(result[i], expected[i])
+  }
+}
+
+///|
+test "str_to_u8: latin1 high chars" {
+  // U+00E9 (é) should become 0xE9 in latin1 mode
+  let result = @utf8.str_to_u8("\u00E9", latin1=true)
+  assert_eq(result.length(), 1)
+  assert_eq(result[0], b'\xE9')
+}
+
+///|
+test "str_to_u8: latin1 empty" {
+  let result = @utf8.str_to_u8("", latin1=true)
+  assert_eq(result.length(), 0)
+}
+
+///|
+test "str_from_u8: latin1 high bytes" {
+  // 0xE9 should become U+00E9 (é) in latin1 mode
+  let data : FixedArray[Byte] = [b'\xE9']
+  let result = @utf8.str_from_u8(data, latin1=true)
+  assert_eq(result, "\u00E9")
+}
+
+///|
+test "str_from_u8: latin1 all byte values" {
+  // Latin-1 should handle all 256 byte values without error
+  let data = FixedArray::make(256, b'\x00')
+  for i = 0; i < 256; i = i + 1 {
+    data[i] = i.to_byte()
+  }
+  let result = @utf8.str_from_u8(data, latin1=true)
+  // Verify length: each byte becomes one character
+  let mut char_count = 0
+  for _c in result {
+    char_count += 1
+  }
+  assert_eq(char_count, 256)
+}
+
+///|
+test "str_from_u8: latin1 bytes that would be invalid UTF-8" {
+  // 0xFF is invalid as UTF-8 but valid as latin1
+  let data : FixedArray[Byte] = [b'\xFF']
+  let result = @utf8.str_from_u8(data, latin1=true)
+  assert_eq(result, "\u00FF")
+}
+
+///|
+test "round-trip: latin1" {
+  // Latin-1 range characters round-trip correctly
+  let original = "caf\u00E9"
+  let bytes = @utf8.str_to_u8(original, latin1=true)
+  let decoded = @utf8.str_from_u8(bytes, latin1=true)
+  assert_eq(decoded, original)
+}
+
 // === Round-trip Tests ===
 
 ///|

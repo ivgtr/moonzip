@@ -31,3 +31,22 @@ pub fn decompress_sync(
   // Fall back to raw DEFLATE
   @deflate.inflate_sync(data)
 }
+
+///|
+/// Convert a string to a byte array.
+/// When latin1 is true, each character is truncated to its low 8 bits (Latin-1).
+/// When latin1 is false (default), full UTF-8 encoding is used.
+pub fn str_to_u8(s : String, latin1? : Bool = false) -> FixedArray[Byte] {
+  @utf8.str_to_u8(s, latin1~)
+}
+
+///|
+/// Convert a byte array back to a string.
+/// When latin1 is true, each byte is treated as a Latin-1 character.
+/// When latin1 is false (default), the data is decoded as UTF-8 with validation.
+pub fn str_from_u8(
+  data : FixedArray[Byte],
+  latin1? : Bool = false,
+) -> String raise @types.FlateError {
+  @utf8.str_from_u8(data, latin1~)
+}
