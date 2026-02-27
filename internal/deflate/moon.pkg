@@ -2,6 +2,4 @@ import {
   "ivgtr/moonzip/internal/types",
   "ivgtr/moonzip/internal/bits",
   "ivgtr/moonzip/internal/huffman",
-  "ivgtr/moonzip/internal/lz77",
-  "ivgtr/moonzip/internal/checksum",
 }

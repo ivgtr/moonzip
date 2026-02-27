@@ -38,7 +38,7 @@ test "inflate: empty stored block" {
   // Bytes 1-2: 0x00, 0x00 (LEN=0)
   // Bytes 3-4: 0xFF, 0xFF (NLEN=0xFFFF)
   let data : FixedArray[Byte] = [b'\x01', b'\x00', b'\x00', b'\xFF', b'\xFF']
-  let result = @deflate.inflate_sync(data)
+  let result = inflate_sync(data)
   assert_eq(result.length(), 0)
 }
 
@@ -52,7 +52,7 @@ test "inflate: stored block with data" {
   let data : FixedArray[Byte] = [
     b'\x01', b'\x03', b'\x00', b'\xFC', b'\xFF', b'\x41', b'\x42', b'\x43',
   ]
-  let result = @deflate.inflate_sync(data)
+  let result = inflate_sync(data)
   assert_eq(result.length(), 3)
   assert_eq(result[0], b'\x41')
   assert_eq(result[1], b'\x42')
@@ -64,68 +64,68 @@ test "inflate: stored block with data" {
 ///|
 test "deflate level 0: empty data round-trip" {
   let data : FixedArray[Byte] = []
-  let compressed = @deflate.deflate_sync(data, opts=@types.DeflateOptions::{
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
     ..@types.DeflateOptions::default(),
     level: 0,
   })
-  let decompressed = @deflate.inflate_sync(compressed)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
 test "deflate level 0: small data round-trip" {
   let data = string_to_bytes("Hello world!")
-  let compressed = @deflate.deflate_sync(data, opts=@types.DeflateOptions::{
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
     ..@types.DeflateOptions::default(),
     level: 0,
   })
-  let decompressed = @deflate.inflate_sync(compressed)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
 test "deflate level 0: 1 byte round-trip" {
   let data : FixedArray[Byte] = [b'\x42']
-  let compressed = @deflate.deflate_sync(data, opts=@types.DeflateOptions::{
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
     ..@types.DeflateOptions::default(),
     level: 0,
   })
-  let decompressed = @deflate.inflate_sync(compressed)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
 test "deflate level 0: all zeros 1KB round-trip" {
   let data = fill_bytes(b'\x00', 1024)
-  let compressed = @deflate.deflate_sync(data, opts=@types.DeflateOptions::{
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
     ..@types.DeflateOptions::default(),
     level: 0,
   })
-  let decompressed = @deflate.inflate_sync(compressed)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
 test "deflate level 0: large data 64KB+ round-trip" {
   let data = fill_bytes(b'\xAB', 65536)
-  let compressed = @deflate.deflate_sync(data, opts=@types.DeflateOptions::{
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
     ..@types.DeflateOptions::default(),
     level: 0,
   })
   // Store blocks: should be larger than input (overhead per block)
   assert_true(compressed.length() > data.length())
-  let decompressed = @deflate.inflate_sync(compressed)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
 test "deflate level 0: 65535 bytes (single block boundary)" {
   let data = fill_bytes(b'\x01', 65535)
-  let compressed = @deflate.deflate_sync(data, opts=@types.DeflateOptions::{
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
     ..@types.DeflateOptions::default(),
     level: 0,
   })
-  let decompressed = @deflate.inflate_sync(compressed)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
@@ -134,24 +134,24 @@ test "deflate level 0: 65535 bytes (single block boundary)" {
 ///|
 test "deflate level 6: empty data round-trip" {
   let data : FixedArray[Byte] = []
-  let compressed = @deflate.deflate_sync(data)
-  let decompressed = @deflate.inflate_sync(compressed)
+  let compressed = deflate_sync(data)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
 test "deflate level 6: 'Hello world!' round-trip" {
   let data = string_to_bytes("Hello world!")
-  let compressed = @deflate.deflate_sync(data)
-  let decompressed = @deflate.inflate_sync(compressed)
+  let compressed = deflate_sync(data)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
 ///|
 test "deflate level 6: all zeros 1KB round-trip" {
   let data = fill_bytes(b'\x00', 1024)
-  let compressed = @deflate.deflate_sync(data)
-  let decompressed = @deflate.inflate_sync(compressed)
+  let compressed = deflate_sync(data)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
@@ -161,8 +161,8 @@ test "deflate level 6: binary data round-trip" {
   for i = 0; i < 256; i = i + 1 {
     data[i] = i.to_byte()
   }
-  let compressed = @deflate.deflate_sync(data)
-  let decompressed = @deflate.inflate_sync(compressed)
+  let compressed = deflate_sync(data)
+  let decompressed = inflate_sync(compressed)
   assert_true(bytes_equal(data, decompressed))
 }
 
@@ -173,7 +173,7 @@ test "inflate: truncated data" {
   let data : FixedArray[Byte] = [b'\x01']
   let mut got_error = false
   try {
-    let _ = @deflate.inflate_sync(data)
+    let _ = inflate_sync(data)
   } catch {
     @types.FlateError(_) => got_error = true
   }
@@ -186,7 +186,7 @@ test "inflate: invalid block type 3" {
   let data : FixedArray[Byte] = [b'\x07']
   let mut got_error = false
   try {
-    let _ = @deflate.inflate_sync(data)
+    let _ = inflate_sync(data)
   } catch {
     @types.FlateError(_) => got_error = true
   }
@@ -201,7 +201,7 @@ test "inflate: stored block len/nlen mismatch" {
   ]
   let mut got_error = false
   try {
-    let _ = @deflate.inflate_sync(data)
+    let _ = inflate_sync(data)
   } catch {
     @types.FlateError(_) => got_error = true
   }
@@ -216,7 +216,7 @@ test "dopt: clamps level" {
     ..@types.DeflateOptions::default(),
     level: 15,
   }
-  let params = @deflate.dopt(opts)
+  let params = dopt(opts)
   assert_eq(params[0], 9)
 }
 
@@ -226,6 +226,6 @@ test "dopt: clamps negative level to 0" {
     ..@types.DeflateOptions::default(),
     level: -1,
   }
-  let params = @deflate.dopt(opts)
+  let params = dopt(opts)
   assert_eq(params[0], 0)
 }

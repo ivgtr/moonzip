@@ -17,4 +17,4 @@ moon add ivgtr/moonzip
 
 ## License
 
-Apache-2.0
+MIT

@@ -29,7 +29,7 @@ pub let clim : FixedArray[Int] = [
 /// Index 16: 2 extra bits (repeat previous 3-6)
 /// Index 17: 3 extra bits (repeat zero 3-10)
 /// Index 18: 7 extra bits (repeat zero 11-138)
-pub let fclim : FixedArray[Int] = [
+let fclim : FixedArray[Int] = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7,
 ]
 
@@ -41,7 +41,7 @@ pub let fclim : FixedArray[Int] = [
 /// Pre-computed 15-bit reversal table. rev15[i] contains the bit-reversal
 /// of i interpreted as a 15-bit value. Used for converting Huffman codes
 /// between MSB-first canonical form and DEFLATE's LSB-first format.
-pub let rev15 : FixedArray[Int] = {
+let rev15 : FixedArray[Int] = {
   let t : FixedArray[Int] = FixedArray::make(32768, 0)
   for i = 0; i < 32768; i = i + 1 {
     let mut x = i
@@ -83,7 +83,7 @@ pub let flt : FixedArray[Int] = {
 ///|
 /// Fixed distance code lengths for DEFLATE (RFC 1951 section 3.2.6).
 /// All 32 distance codes use 5 bits.
-pub let fdt : FixedArray[Int] = {
+let fdt : FixedArray[Int] = {
   let t : FixedArray[Int] = FixedArray::make(32, 0)
   for i = 0; i < 32; i = i + 1 {
     t[i] = 5
@@ -116,7 +116,7 @@ pub(all) struct FrebResult {
 /// Returns a FrebResult containing:
 ///   b - base values for each code (31 entries)
 ///   r - reverse lookup mapping literal value -> (offset << 5) | code
-pub fn freb(eb : FixedArray[Int], start : Int) -> FrebResult {
+fn freb(eb : FixedArray[Int], start : Int) -> FrebResult {
   let b : FixedArray[Int] = FixedArray::make(31, 0)
   let mut s = start
   for i = 0; i < 31; i = i + 1 {
@@ -148,7 +148,7 @@ pub let fl : FixedArray[Int] = {
 ///|
 /// Reverse lookup for length values -> length code index.
 /// For a match length L, revfl[L] = ((L - base) << 5) | code_index.
-pub let revfl : FixedArray[Int] = {
+let revfl : FixedArray[Int] = {
   let result = freb(fleb, 2)
   result.b[28] = 258
   result.r[258] = 28
@@ -166,7 +166,7 @@ pub let fd : FixedArray[Int] = {
 ///|
 /// Reverse lookup for distance values -> distance code index.
 /// For a distance D, revfd[D] = ((D - base) << 5) | code_index.
-pub let revfd : FixedArray[Int] = {
+let revfd : FixedArray[Int] = {
   let result = freb(fdeb, 0)
   result.r
 }
@@ -259,7 +259,7 @@ pub let flrm : FixedArray[Int] = h_map(flt, 9, Reverse)
 
 ///|
 /// Fixed distance Huffman encoding map (symbol -> code).
-pub let fdm : FixedArray[Int] = h_map(fdt, 5, Forward)
+let fdm : FixedArray[Int] = h_map(fdt, 5, Forward)
 
 ///|
 /// Fixed distance Huffman decoding map (code -> symbol|length).
@@ -287,7 +287,7 @@ pub(all) struct HTreeResult {
 ///   mb - Maximum allowed bit depth (typically 15 for DEFLATE)
 ///
 /// Returns HTreeResult containing code length array and actual max bit length.
-pub fn h_tree(d : FixedArray[Int], mb : Int) -> HTreeResult {
+fn h_tree(d : FixedArray[Int], mb : Int) -> HTreeResult {
   // Collect non-zero frequency symbols
   let len = d.length()
   let mut count = 0
@@ -517,7 +517,7 @@ pub(all) struct LcResult {
 ///   c - Code length array to encode
 ///
 /// Returns LcResult with encoded output and trimmed length.
-pub fn lc(c : FixedArray[Int]) -> LcResult {
+fn lc(c : FixedArray[Int]) -> LcResult {
   let mut s = c.length()
   // Trim trailing zeros
   while s > 0 && c[s - 1] == 0 {
@@ -610,7 +610,7 @@ pub fn max_bits(a : FixedArray[Int]) -> Int {
 ///   cl - Code length table: cl[symbol] = bit length
 ///
 /// Returns the total number of bits.
-pub fn clen(cf : FixedArray[Int], cl : FixedArray[Int]) -> Int {
+fn clen(cf : FixedArray[Int], cl : FixedArray[Int]) -> Int {
   let mut l = 0
   let end = if cf.length() < cl.length() { cf.length() } else { cl.length() }
   for i = 0; i < end; i = i + 1 {

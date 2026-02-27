@@ -4,11 +4,7 @@ package "ivgtr/moonzip/internal/checksum"
 // Values
 pub fn adler32(FixedArray[Byte]) -> UInt
 
-pub fn adler32_update(UInt, FixedArray[Byte], offset? : Int, length? : Int) -> UInt
-
 pub fn crc32(FixedArray[Byte]) -> UInt
-
-pub fn crc32_update(UInt, FixedArray[Byte], offset? : Int, length? : Int) -> UInt
 
 // Errors
 

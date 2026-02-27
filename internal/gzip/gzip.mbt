@@ -9,7 +9,7 @@
 ///|
 /// Write GZIP header to output buffer based on options.
 /// Returns the number of bytes written.
-pub fn gzh(out : FixedArray[Byte], opts : @types.GzipOptions) -> Int {
+fn gzh(out : FixedArray[Byte], opts : @types.GzipOptions) -> Int {
   // ID1, ID2
   out[0] = b'\x1F'
   out[1] = b'\x8B'
@@ -103,7 +103,7 @@ pub fn gzh(out : FixedArray[Byte], opts : @types.GzipOptions) -> Int {
 ///|
 /// Parse GZIP header and return the byte offset where the DEFLATE
 /// compressed data begins.
-pub fn gzs(data : FixedArray[Byte]) -> Int raise @types.FlateError {
+fn gzs(data : FixedArray[Byte]) -> Int raise @types.FlateError {
   let sl = data.length()
   if sl < 10 {
     raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
@@ -168,7 +168,7 @@ pub fn gzs(data : FixedArray[Byte]) -> Int raise @types.FlateError {
 ///|
 /// Verify the GZIP footer (CRC32 and ISIZE) against the decompressed data.
 /// The footer is the last 8 bytes of the GZIP data.
-pub fn gzl(
+fn gzl(
   data : FixedArray[Byte],
   decompressed : FixedArray[Byte],
 ) -> Unit raise @types.FlateError {

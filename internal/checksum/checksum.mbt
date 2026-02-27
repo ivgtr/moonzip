@@ -26,7 +26,7 @@ pub fn crc32(data : FixedArray[Byte]) -> UInt {
 ///|
 /// Incrementally update CRC32 state.
 /// Initial state should be 0xFFFFFFFF. Finalize with XOR 0xFFFFFFFF.
-pub fn crc32_update(
+fn crc32_update(
   prev : UInt,
   data : FixedArray[Byte],
   offset? : Int = 0,
@@ -54,7 +54,7 @@ pub fn adler32(data : FixedArray[Byte]) -> UInt {
 ///|
 /// Incrementally update Adler-32 state.
 /// Initial state should be 1. The value is the checksum at all times.
-pub fn adler32_update(
+fn adler32_update(
   prev : UInt,
   data : FixedArray[Byte],
   offset? : Int = 0,

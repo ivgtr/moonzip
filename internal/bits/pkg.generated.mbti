@@ -6,8 +6,6 @@ pub fn b2(FixedArray[Byte], Int) -> Int
 
 pub fn b4(FixedArray[Byte], Int) -> Int
 
-pub fn b8(FixedArray[Byte], Int) -> Int64
-
 pub fn bits(FixedArray[Byte], Int, Int) -> Int
 
 pub fn bits16(FixedArray[Byte], Int, Int) -> Int

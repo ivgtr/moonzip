@@ -2,7 +2,7 @@
 /// Generate Zlib header bytes for a given compression level.
 /// Returns [CMF, FLG] where CMF uses CM=8 (deflate), CINFO=7 (32KB window),
 /// and FLG encodes FLEVEL with correct FCHECK so (CMF*256+FLG) % 31 == 0.
-pub fn zlh(level : Int) -> FixedArray[Byte] {
+fn zlh(level : Int) -> FixedArray[Byte] {
   let cmf = 0x78 // CM=8 (deflate), CINFO=7 (32KB window)
   let flevel = if level <= 1 {
     0
@@ -22,7 +22,7 @@ pub fn zlh(level : Int) -> FixedArray[Byte] {
 ///|
 /// Validate Zlib header and return data offset (number of bytes to skip).
 /// Raises FlateError on invalid header.
-pub fn zls(data : FixedArray[Byte]) -> Int raise @types.FlateError {
+fn zls(data : FixedArray[Byte]) -> Int raise @types.FlateError {
   if data.length() < 2 {
     raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
   }

@@ -298,7 +298,7 @@ pub fn inflt(
 ///   offset  - Start offset in source data
 ///   len     - Number of bytes to write
 ///   final_  - Whether this is the final block
-pub fn wfblk(
+fn wfblk(
   out : FixedArray[Byte],
   out_pos : Int,
   data : FixedArray[Byte],
@@ -343,7 +343,7 @@ pub fn wfblk(
 ///   final_  - Whether this is the final block
 ///
 /// Returns the new bit position after writing.
-pub fn wblk(
+fn wblk(
   out : FixedArray[Byte],
   pos : Int,
   data : FixedArray[Byte],
@@ -386,7 +386,7 @@ pub fn wblk(
 ///   opts - DeflateOptions
 ///
 /// Returns (level, mem) tuple as a FixedArray of 2 Ints.
-pub fn dopt(opts : @types.DeflateOptions) -> FixedArray[Int] {
+fn dopt(opts : @types.DeflateOptions) -> FixedArray[Int] {
   let mut level = opts.level
   let mut mem = opts.mem
   // Clamp level to 0-9
