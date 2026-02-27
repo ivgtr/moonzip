@@ -1101,3 +1101,249 @@ test "Unzip: push after finished raises error" {
   }
   assert_true(got_error)
 }
+
+// ============================================================
+// EncodeUTF8 tests
+// ============================================================
+
+///|
+test "EncodeUTF8: ASCII string chunks match str_to_u8" {
+  let chunks = ["Hello, ", "World!"]
+  let collected : Array[FixedArray[Byte]] = []
+  let enc = @stream.EncodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  for i = 0; i < chunks.length(); i = i + 1 {
+    let is_final = i == chunks.length() - 1
+    enc.push(chunks[i], is_final)
+  }
+  let result = concat_test_chunks(collected)
+  let expected = @utf8.str_to_u8("Hello, World!")
+  assert_true(bytes_equal(result, expected))
+}
+
+///|
+test "EncodeUTF8: multibyte string chunks match str_to_u8" {
+  // "こんにちは世界" split into chunks
+  let chunks = ["\u3053\u3093", "\u306B\u3061\u306F", "\u4E16\u754C"]
+  let collected : Array[FixedArray[Byte]] = []
+  let enc = @stream.EncodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  for i = 0; i < chunks.length(); i = i + 1 {
+    let is_final = i == chunks.length() - 1
+    enc.push(chunks[i], is_final)
+  }
+  let result = concat_test_chunks(collected)
+  let expected = @utf8.str_to_u8("\u3053\u3093\u306B\u3061\u306F\u4E16\u754C")
+  assert_true(bytes_equal(result, expected))
+}
+
+///|
+test "EncodeUTF8: empty string" {
+  let collected : Array[FixedArray[Byte]] = []
+  let enc = @stream.EncodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  enc.push("", true)
+  let result = concat_test_chunks(collected)
+  assert_eq(result.length(), 0)
+}
+
+///|
+test "EncodeUTF8: single push with final" {
+  let collected : Array[FixedArray[Byte]] = []
+  let enc = @stream.EncodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  enc.push("Hello \u4E16\u754C!", true)
+  let result = concat_test_chunks(collected)
+  let expected = @utf8.str_to_u8("Hello \u4E16\u754C!")
+  assert_true(bytes_equal(result, expected))
+}
+
+///|
+test "EncodeUTF8: push after final raises error" {
+  let enc = @stream.EncodeUTF8::new(ondata=fn(_chunk, _final) {  })
+  enc.push("test", true)
+  let mut got_error = false
+  enc.push("more", false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+// ============================================================
+// DecodeUTF8 tests
+// ============================================================
+
+///|
+test "DecodeUTF8: ASCII bytes to string" {
+  let collected : Array[String] = []
+  let dec = @stream.DecodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  let data = @utf8.str_to_u8("Hello, World!")
+  dec.push(data, true)
+  let result = concat_strings(collected)
+  assert_eq(result, "Hello, World!")
+}
+
+///|
+test "DecodeUTF8: multibyte bytes to string in chunks" {
+  let full_bytes = @utf8.str_to_u8("\u3053\u3093\u306B\u3061\u306F\u4E16\u754C")
+  let chunks = split_into_chunks(full_bytes, 4)
+  let collected : Array[String] = []
+  let dec = @stream.DecodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  for i = 0; i < chunks.length(); i = i + 1 {
+    let is_final = i == chunks.length() - 1
+    dec.push(chunks[i], is_final)
+  }
+  let result = concat_strings(collected)
+  assert_eq(result, "\u3053\u3093\u306B\u3061\u306F\u4E16\u754C")
+}
+
+///|
+test "DecodeUTF8: multibyte split at boundary" {
+  // "日" (U+65E5) = E6 97 A5 (3 bytes)
+  // Split: first chunk gets E6 97, second chunk gets A5
+  let chunk1 : FixedArray[Byte] = [b'\xE6', b'\x97']
+  let chunk2 : FixedArray[Byte] = [b'\xA5']
+  let collected : Array[String] = []
+  let dec = @stream.DecodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  dec.push(chunk1, false)
+  dec.push(chunk2, true)
+  let result = concat_strings(collected)
+  assert_eq(result, "\u65E5")
+}
+
+///|
+test "DecodeUTF8: 4-byte char split across chunks" {
+  // U+1F600 (😀) = F0 9F 98 80
+  let chunk1 : FixedArray[Byte] = [b'\xF0', b'\x9F']
+  let chunk2 : FixedArray[Byte] = [b'\x98', b'\x80']
+  let collected : Array[String] = []
+  let dec = @stream.DecodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  dec.push(chunk1, false)
+  dec.push(chunk2, true)
+  let result = concat_strings(collected)
+  // Compare byte-level to avoid potential display issues
+  let result_bytes = @utf8.str_to_u8(result)
+  let expected_bytes : FixedArray[Byte] = [b'\xF0', b'\x9F', b'\x98', b'\x80']
+  assert_true(bytes_equal(result_bytes, expected_bytes))
+}
+
+///|
+test "DecodeUTF8: invalid continuation byte raises error" {
+  // 0xC3 starts a 2-byte sequence but 0x00 is not a valid continuation byte
+  let data : FixedArray[Byte] = [b'\xC3', b'\x00']
+  let dec = @stream.DecodeUTF8::new(ondata=fn(_chunk, _final) {  })
+  let mut got_error = false
+  dec.push(data, true) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "DecodeUTF8: truncated sequence at final raises error" {
+  // 0xC3 starts a 2-byte sequence but stream ends
+  let data : FixedArray[Byte] = [b'\xC3']
+  let dec = @stream.DecodeUTF8::new(ondata=fn(_chunk, _final) {  })
+  let mut got_error = false
+  dec.push(data, true) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "DecodeUTF8: invalid leading byte raises error" {
+  // 0xFF is not a valid UTF-8 leading byte
+  let data : FixedArray[Byte] = [b'\xFF']
+  let dec = @stream.DecodeUTF8::new(ondata=fn(_chunk, _final) {  })
+  let mut got_error = false
+  dec.push(data, true) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "DecodeUTF8: empty input" {
+  let collected : Array[String] = []
+  let dec = @stream.DecodeUTF8::new(ondata=fn(chunk, _final) {
+    collected.push(chunk)
+  })
+  dec.push(FixedArray::make(0, b'\x00'), true)
+  let result = concat_strings(collected)
+  assert_eq(result, "")
+}
+
+///|
+test "DecodeUTF8: push after final raises error" {
+  let dec = @stream.DecodeUTF8::new(ondata=fn(_chunk, _final) {  })
+  dec.push(FixedArray::make(0, b'\x00'), true)
+  let mut got_error = false
+  dec.push(FixedArray::make(0, b'\x00'), false) catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "EncodeUTF8 -> DecodeUTF8 round-trip" {
+  let original = "Hello \u4E16\u754C! \u00E9\u00E8\u00EA"
+  let byte_chunks : Array[FixedArray[Byte]] = []
+  let enc = @stream.EncodeUTF8::new(ondata=fn(chunk, _final) {
+    byte_chunks.push(chunk)
+  })
+  enc.push(original, true)
+  let string_chunks : Array[String] = []
+  let dec = @stream.DecodeUTF8::new(ondata=fn(chunk, _final) {
+    string_chunks.push(chunk)
+  })
+  for i = 0; i < byte_chunks.length(); i = i + 1 {
+    let is_final = i == byte_chunks.length() - 1
+    dec.push(byte_chunks[i], is_final)
+  }
+  let result = concat_strings(string_chunks)
+  assert_eq(result, original)
+}
+
+// ============================================================
+// Test helpers for UTF-8 streaming tests
+// ============================================================
+
+///|
+fn concat_test_chunks(chunks : Array[FixedArray[Byte]]) -> FixedArray[Byte] {
+  let mut total = 0
+  for i = 0; i < chunks.length(); i = i + 1 {
+    total = total + chunks[i].length()
+  }
+  let result = FixedArray::make(total, b'\x00')
+  let mut pos = 0
+  for i = 0; i < chunks.length(); i = i + 1 {
+    let chunk = chunks[i]
+    for j = 0; j < chunk.length(); j = j + 1 {
+      result[pos] = chunk[j]
+      pos = pos + 1
+    }
+  }
+  result
+}
+
+///|
+fn concat_strings(strings : Array[String]) -> String {
+  let buf = StringBuilder::new()
+  for i = 0; i < strings.length(); i = i + 1 {
+    buf.write_string(strings[i])
+  }
+  buf.to_string()
+}
