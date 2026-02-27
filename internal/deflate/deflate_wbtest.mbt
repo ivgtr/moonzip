@@ -564,3 +564,107 @@ test "compression ratio: levels 1-9 all beat store for repeated data" {
     assert_true(compressed.length() < store_size)
   }
 }
+
+// === A-T3: Round-trip tests (all levels) ===
+
+///|
+fn make_pseudo_random(size : Int) -> FixedArray[Byte] {
+  let data = FixedArray::make(size, b'\x00')
+  let mut state = 12345
+  for i = 0; i < size; i = i + 1 {
+    state = (state * 1103515245 + 12345) & 0x7FFFFFFF
+    data[i] = (state % 256).to_byte()
+  }
+  data
+}
+
+///|
+test "round-trip: all levels × empty data" {
+  let data : FixedArray[Byte] = []
+  for level = 0; level <= 9; level = level + 1 {
+    let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    })
+    let decompressed = inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "round-trip: all levels × 1 byte" {
+  let data : FixedArray[Byte] = [b'\x42']
+  for level = 0; level <= 9; level = level + 1 {
+    let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    })
+    let decompressed = inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "round-trip: all levels × 'Hello world!'" {
+  let data = string_to_bytes("Hello world!")
+  for level = 0; level <= 9; level = level + 1 {
+    let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    })
+    let decompressed = inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "round-trip: all levels × 1KB same byte" {
+  let data = fill_bytes(b'\xAA', 1024)
+  for level = 0; level <= 9; level = level + 1 {
+    let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    })
+    let decompressed = inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "round-trip: all levels × 10KB repeated pattern" {
+  let data = FixedArray::make(10240, b'\x00')
+  for i = 0; i < 10240; i = i + 1 {
+    let ch = match i % 8 {
+      0 => b'\x61'
+      1 => b'\x62'
+      2 => b'\x63'
+      3 => b'\x64'
+      4 => b'\x65'
+      5 => b'\x66'
+      6 => b'\x67'
+      _ => b'\x68'
+    }
+    data[i] = ch
+  }
+  for level = 0; level <= 9; level = level + 1 {
+    let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    })
+    let decompressed = inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "round-trip: all levels × pseudo-random data" {
+  let data = make_pseudo_random(4096)
+  for level = 0; level <= 9; level = level + 1 {
+    let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    })
+    let decompressed = inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
