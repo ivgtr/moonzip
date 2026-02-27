@@ -41,15 +41,16 @@ fn bytes_to_str(data : FixedArray[Byte]) -> String {
       sb.write_char(cp.unsafe_to_char())
       i = i + 2
     } else if (b0 & 0xF0) == 0xE0 && i + 2 < len {
-      let cp = ((b0 & 0x0F) << 12) | ((data[i + 1].to_int() & 0x3F) << 6) | (data[
-        i + 2
-      ].to_int() & 0x3F)
+      let cp = ((b0 & 0x0F) << 12) |
+        ((data[i + 1].to_int() & 0x3F) << 6) |
+        (data[i + 2].to_int() & 0x3F)
       sb.write_char(cp.unsafe_to_char())
       i = i + 3
     } else if (b0 & 0xF8) == 0xF0 && i + 3 < len {
-      let cp = ((b0 & 0x07) << 18) | ((data[i + 1].to_int() & 0x3F) << 12) | ((data[
-        i + 2
-      ].to_int() & 0x3F) << 6) | (data[i + 3].to_int() & 0x3F)
+      let cp = ((b0 & 0x07) << 18) |
+        ((data[i + 1].to_int() & 0x3F) << 12) |
+        ((data[i + 2].to_int() & 0x3F) << 6) |
+        (data[i + 3].to_int() & 0x3F)
       sb.write_char(cp.unsafe_to_char())
       i = i + 4
     } else {
@@ -64,8 +65,7 @@ fn bytes_to_str(data : FixedArray[Byte]) -> String {
 fn bytes_to_hex(data : FixedArray[Byte]) -> String {
   let sb = StringBuilder::new()
   let hex_chars : FixedArray[Char] = [
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e',
-    'f',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
   ]
   for i = 0; i < data.length(); i = i + 1 {
     let b = data[i].to_int()
