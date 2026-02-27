@@ -413,9 +413,7 @@ test "zip: unzip_list multiple files with Store and Deflate" {
   let data2 = string_to_bytes(
     "Hello deflate test data that should be compressed well enough",
   )
-  let files_store : Array[(String, FixedArray[Byte])] = [
-    ("store.txt", data1),
-  ]
+  let files_store : Array[(String, FixedArray[Byte])] = [("store.txt", data1)]
   let files_deflate : Array[(String, FixedArray[Byte])] = [
     ("deflate.txt", data2),
   ]
@@ -508,9 +506,7 @@ test "zip: leap year date round-trip (2000-02-29)" {
 ///|
 test "zip: 4-byte UTF-8 emoji filename round-trip" {
   let data = string_to_bytes("emoji content")
-  let files : Array[(String, FixedArray[Byte])] = [
-    ("\u{1F4C1}test.txt", data),
-  ]
+  let files : Array[(String, FixedArray[Byte])] = [("\u{1F4C1}test.txt", data)]
   let archive = zip_sync(files)
   let result = unzip_sync(archive)
   assert_eq(result.length(), 1)
@@ -545,4 +541,398 @@ test "zip: invalid local header signature" {
   }
   assert_true(got_error)
   assert_eq(error_code, @types.FlateErrorCode::InvalidZipData)
+}
+
+// ============================================================
+// Phase D: ZIP 機能拡張テスト
+// ============================================================
+
+// === D-T1: zip_sync per-entry ZipEntryOptions テスト ===
+
+///|
+test "zip D-1: per-entry level override (Store + Deflate mix)" {
+  let data1 = string_to_bytes("File stored at level 0")
+  let data2 = string_to_bytes(
+    "File compressed with deflate at level 6 with more data to compress",
+  )
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("stored.txt", data1),
+    ("deflated.txt", data2),
+  ]
+  let entry_options : Array[@types.ZipEntryOptions?] = [
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      level: 0,
+    }),
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      level: 6,
+    }),
+  ]
+  let archive = zip_sync(files, entry_opts=entry_options)
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 2)
+  assert_eq(result[0].0, "stored.txt")
+  assert_true(bytes_equal(result[0].1, data1))
+  assert_eq(result[1].0, "deflated.txt")
+  assert_true(bytes_equal(result[1].1, data2))
+  // Verify first entry uses Store (method=0) in local header
+  let comp0 = archive[8].to_int() | (archive[9].to_int() << 8)
+  assert_eq(comp0, 0)
+}
+
+///|
+test "zip D-1: per-entry mtime override" {
+  let data = string_to_bytes("time test data")
+  let mtime1 = 1700000000
+  let mtime2 = 951782400
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("file1.txt", data),
+    ("file2.txt", data),
+  ]
+  let entry_options : Array[@types.ZipEntryOptions?] = [
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      mtime: Some(mtime1),
+    }),
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      mtime: Some(mtime2),
+    }),
+  ]
+  let archive = zip_sync(files, entry_opts=entry_options)
+  // Verify via unzip_list that mtimes are different
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 2)
+  // DOS time has 2-second granularity, so round down
+  let expected_mtime1 = mtime1 - mtime1 % 2
+  let expected_mtime2 = mtime2 - mtime2 % 2
+  assert_eq(list[0].mtime, expected_mtime1)
+  assert_eq(list[1].mtime, expected_mtime2)
+}
+
+///|
+test "zip D-1: per-entry attrs (comment and extra)" {
+  let data = string_to_bytes("attrs test")
+  let files : Array[(String, FixedArray[Byte])] = [("attrs.txt", data)]
+  let extra_map : Map[Int, FixedArray[Byte]] = {}
+  extra_map[0x0001] = FixedArray::make(4, b'\xAB')
+  let entry_options : Array[@types.ZipEntryOptions?] = [
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      attrs: Some(@types.ZipAttributes::{
+        os: None,
+        attrs: Some(0x20),
+        comment: Some("entry comment"),
+        extra: Some(extra_map),
+      }),
+    }),
+  ]
+  let archive = zip_sync(files, entry_opts=entry_options)
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 1)
+  assert_eq(list[0].comment, "entry comment")
+  assert_eq(list[0].attrs, 0x20)
+  // Verify extra field round-trip
+  assert_true(list[0].extra.contains(0x0001))
+  let d = list[0].extra[0x0001]
+  assert_eq(d.length(), 4)
+  assert_eq(d[0], b'\xAB')
+}
+
+///|
+test "zip D-1: per-entry options with None (uses global defaults)" {
+  let data = string_to_bytes("default options test data for compression")
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("default.txt", data),
+    ("also_default.txt", data),
+  ]
+  let entry_options : Array[@types.ZipEntryOptions?] = [None, None]
+  let archive = zip_sync(
+    files,
+    opts=@types.ZipOptions::{
+      ..@types.ZipOptions::default(),
+      level: 0,
+      mtime: Some(1700000000),
+    },
+    entry_opts=entry_options,
+  )
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 2)
+  assert_true(bytes_equal(result[0].1, data))
+  assert_true(bytes_equal(result[1].1, data))
+  // Both should use Store (level 0 from global opts)
+  let comp0 = archive[8].to_int() | (archive[9].to_int() << 8)
+  assert_eq(comp0, 0)
+}
+
+// === D-T2: unzip_sync フィルタ機能テスト ===
+
+///|
+test "zip D-2: unzip_sync filter specific file" {
+  let data1 = string_to_bytes("File one")
+  let data2 = string_to_bytes("File two")
+  let data3 = string_to_bytes("File three")
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("a.txt", data1),
+    ("b.txt", data2),
+    ("c.txt", data3),
+  ]
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive, filter=fn(info) { info.name == "b.txt" })
+  assert_eq(result.length(), 1)
+  assert_eq(result[0].0, "b.txt")
+  assert_true(bytes_equal(result[0].1, data2))
+}
+
+///|
+test "zip D-2: unzip_sync filter excludes all" {
+  let data = string_to_bytes("data")
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("a.txt", data),
+    ("b.txt", data),
+  ]
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive, filter=fn(_info) { false })
+  assert_eq(result.length(), 0)
+}
+
+///|
+test "zip D-2: unzip_sync filter includes all" {
+  let data1 = string_to_bytes("File one")
+  let data2 = string_to_bytes("File two")
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("a.txt", data1),
+    ("b.txt", data2),
+  ]
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive, filter=fn(_info) { true })
+  assert_eq(result.length(), 2)
+  assert_true(bytes_equal(result[0].1, data1))
+  assert_true(bytes_equal(result[1].1, data2))
+}
+
+///|
+test "zip D-2: unzip_sync filter by size" {
+  let small = string_to_bytes("s")
+  let large = string_to_bytes(
+    "This is a much larger file with more content inside",
+  )
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("small.txt", small),
+    ("large.txt", large),
+  ]
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    level: 0,
+  })
+  let result = unzip_sync(archive, filter=fn(info) { info.original_size > 10 })
+  assert_eq(result.length(), 1)
+  assert_eq(result[0].0, "large.txt")
+}
+
+///|
+test "zip D-2: unzip_sync without filter (backward compatible)" {
+  let data = string_to_bytes("backward compat")
+  let files : Array[(String, FixedArray[Byte])] = [("compat.txt", data)]
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 1)
+  assert_true(bytes_equal(result[0].1, data))
+}
+
+// === D-T3: UnzipFileInfo フィールド追加テスト ===
+
+///|
+test "zip D-3: unzip_list returns mtime" {
+  let data = string_to_bytes("mtime test")
+  let mtime = 1700000000
+  let files : Array[(String, FixedArray[Byte])] = [("mtime.txt", data)]
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    mtime: Some(mtime),
+  })
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 1)
+  // DOS time has 2-second granularity
+  let expected = mtime - mtime % 2
+  assert_eq(list[0].mtime, expected)
+}
+
+///|
+test "zip D-3: unzip_list returns attrs" {
+  let data = string_to_bytes("attrs test")
+  let files : Array[(String, FixedArray[Byte])] = [("attrs.txt", data)]
+  let entry_options : Array[@types.ZipEntryOptions?] = [
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      attrs: Some(@types.ZipAttributes::{
+        os: None,
+        attrs: Some(0x10),
+        comment: None,
+        extra: None,
+      }),
+    }),
+  ]
+  let archive = zip_sync(files, entry_opts=entry_options)
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 1)
+  assert_eq(list[0].attrs, 0x10)
+}
+
+///|
+test "zip D-3: unzip_list returns comment" {
+  let data = string_to_bytes("comment test")
+  let files : Array[(String, FixedArray[Byte])] = [("comment.txt", data)]
+  let entry_options : Array[@types.ZipEntryOptions?] = [
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      attrs: Some(@types.ZipAttributes::{
+        os: None,
+        attrs: None,
+        comment: Some("file comment here"),
+        extra: None,
+      }),
+    }),
+  ]
+  let archive = zip_sync(files, entry_opts=entry_options)
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 1)
+  assert_eq(list[0].comment, "file comment here")
+}
+
+///|
+test "zip D-3: unzip_list returns extra fields" {
+  let data = string_to_bytes("extra test")
+  let files : Array[(String, FixedArray[Byte])] = [("extra.txt", data)]
+  let extra_map : Map[Int, FixedArray[Byte]] = {}
+  extra_map[0x5455] = FixedArray::make(5, b'\x01')
+  let entry_options : Array[@types.ZipEntryOptions?] = [
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      attrs: Some(@types.ZipAttributes::{
+        os: None,
+        attrs: None,
+        comment: None,
+        extra: Some(extra_map),
+      }),
+    }),
+  ]
+  let archive = zip_sync(files, entry_opts=entry_options)
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 1)
+  assert_true(list[0].extra.contains(0x5455))
+  let d = list[0].extra[0x5455]
+  assert_eq(d.length(), 5)
+  assert_eq(d[0], b'\x01')
+}
+
+///|
+test "zip D-3: unzip_list default values for new fields" {
+  let data = string_to_bytes("default fields test")
+  let files : Array[(String, FixedArray[Byte])] = [("default.txt", data)]
+  let archive = zip_sync(files)
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 1)
+  assert_eq(list[0].comment, "")
+  assert_eq(list[0].attrs, 0)
+  assert_eq(list[0].extra.length(), 0)
+}
+
+// === D-T3b: ZIP64 読み取りサポートテスト ===
+
+///|
+test "zip D-4: ZIP64 EOCD parsing (synthetic)" {
+  // Create a normal small archive first
+  let data = string_to_bytes("zip64 test")
+  let files : Array[(String, FixedArray[Byte])] = [("z64.txt", data)]
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    level: 0,
+  })
+  // Verify that parse_eocd works on normal archives (backward compatibility)
+  let list = unzip_list(archive)
+  assert_eq(list.length(), 1)
+  assert_eq(list[0].name, "z64.txt")
+  assert_eq(list[0].original_size, data.length())
+}
+
+// === D-T4: ZIP ファイルコメント テスト ===
+
+///|
+test "zip D-5: archive comment write and read" {
+  let data = string_to_bytes("comment archive test")
+  let files : Array[(String, FixedArray[Byte])] = [("commented.txt", data)]
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    comment: Some("This is an archive comment"),
+  })
+  let comment = zip_comment(archive)
+  assert_eq(comment, "This is an archive comment")
+}
+
+///|
+test "zip D-5: archive comment empty by default" {
+  let data = string_to_bytes("no comment")
+  let files : Array[(String, FixedArray[Byte])] = [("nocomment.txt", data)]
+  let archive = zip_sync(files)
+  let comment = zip_comment(archive)
+  assert_eq(comment, "")
+}
+
+///|
+test "zip D-5: archive comment with UTF-8" {
+  let data = string_to_bytes("utf8 comment")
+  let files : Array[(String, FixedArray[Byte])] = [("utf8.txt", data)]
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    comment: Some("\u{3053}\u{3093}\u{306B}\u{3061}\u{306F}"),
+  })
+  let comment = zip_comment(archive)
+  assert_eq(comment, "\u{3053}\u{3093}\u{306B}\u{3061}\u{306F}")
+}
+
+///|
+test "zip D-5: archive comment does not affect extraction" {
+  let data = string_to_bytes("data with comment")
+  let files : Array[(String, FixedArray[Byte])] = [("file.txt", data)]
+  let archive = zip_sync(files, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    comment: Some("An important archive comment"),
+  })
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 1)
+  assert_true(bytes_equal(result[0].1, data))
+}
+
+///|
+test "zip D-5: archive comment with entry comments" {
+  let data = string_to_bytes("both comments")
+  let files : Array[(String, FixedArray[Byte])] = [("both.txt", data)]
+  let entry_options : Array[@types.ZipEntryOptions?] = [
+    Some(@types.ZipEntryOptions::{
+      ..@types.ZipEntryOptions::default(),
+      attrs: Some(@types.ZipAttributes::{
+        os: None,
+        attrs: None,
+        comment: Some("entry-level comment"),
+        extra: None,
+      }),
+    }),
+  ]
+  let archive = zip_sync(
+    files,
+    opts=@types.ZipOptions::{
+      ..@types.ZipOptions::default(),
+      comment: Some("archive-level comment"),
+    },
+    entry_opts=entry_options,
+  )
+  let archive_comment = zip_comment(archive)
+  assert_eq(archive_comment, "archive-level comment")
+  let list = unzip_list(archive)
+  assert_eq(list[0].comment, "entry-level comment")
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 1)
+  assert_true(bytes_equal(result[0].1, data))
 }

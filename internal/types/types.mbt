@@ -169,4 +169,12 @@ pub(all) struct UnzipFileInfo {
   original_size : Int
   /// Compression method (0 = Store, 8 = Deflate).
   compression : Int
+  /// Modification time as Unix timestamp.
+  mtime : Int
+  /// File attributes.
+  attrs : Int
+  /// File comment.
+  comment : String
+  /// Extra fields (tag -> data).
+  extra : Map[Int, FixedArray[Byte]]
 } derive(Show)
