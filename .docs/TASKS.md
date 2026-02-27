@@ -1,17 +1,21 @@
 # moonzip 残タスク — fflate 完全互換ロードマップ
 
-## 現状サマリー (v0.1.1)
+## 現状サマリー (v0.1.2)
 
 実装済み:
-- DEFLATE圧縮(Store/固定Huffman リテラルのみ)・伸長
-- GZIP圧縮・伸長 (RFC 1952)
-- Zlib圧縮・伸長 (RFC 1950)
-- ZIP作成・解凍 (PKZIP)
-- ストリーミングAPI 7種 (バッファリング方式)
+- DEFLATE圧縮(LZ77 + 動的Huffman, level 0-9)・伸長
+- GZIP圧縮・伸長 (RFC 1952, マルチメンバー対応)
+- Zlib圧縮・伸長 (RFC 1950, 辞書 FDICT 対応)
+- ZIP作成・解凍 (PKZIP, per-entry オプション, フィルタ, ZIP64)
+- ストリーミングAPI (インクリメンタル圧縮/伸長, ondata/flush/onmember)
+- ZIP ストリーミング (ZipPassThrough, ZipDeflate, Zip, Unzip)
+- EncodeUTF8 / DecodeUTF8 ストリーミング
 - CRC32・Adler-32 チェックサム
 - FlateErrorCode 全15種
 - オプション型定義 (DeflateOptions, InflateOptions, GzipOptions, ZlibOptions, ZipOptions, ZipEntryOptions, ZipAttributes)
-- トップレベル re-export 全同期API
+- トップレベル re-export 全同期API + compress_sync, str_to_u8, str_from_u8
+- 辞書圧縮/伸長 (DEFLATE, Zlib)
+- テスト 422件
 
 ---
 
@@ -140,149 +144,149 @@ Phase H (旧タスク) ──────────── ← H-1 は独立、
 
 最大のギャップ。現在 deflate_sync(level>0) は固定Huffmanリテラルのみで後方参照なし。
 
-- [ ] A-1: LZ77 マッチングエンジン実装
+- [x] A-1: LZ77 マッチングエンジン実装
   - ハッシュチェーンベース（fflate 準拠）
   - mem パラメータでハッシュテーブルサイズ制御 (1 << (mem+8))
   - level別の nice閾値 (8~258) / chain長 (4~32768) テーブル
-- [ ] A-2: 動的Huffmanブロック出力
+- [x] A-2: 動的Huffmanブロック出力
   - dyn_build で動的テーブルを構築（既存）→ wblk で書き込み
   - 固定 vs 動的 vs Store の最適ブロック選択
-- [ ] A-3: ブロック分割戦略
+- [x] A-3: ブロック分割戦略
   - 入力サイズに基づくブロック境界の決定
   - fflate の cbuf (131072バイト) 準拠
-- [ ] A-4: 自動メモリレベル選択
+- [x] A-4: 自動メモリレベル選択
   - 入力サイズ → mem の自動決定ロジック (Math.min(mem, Math.ceil(Math.log(data.length)/2)))
-- [ ] A-T1: LZ77 ユニットテスト
+- [x] A-T1: LZ77 ユニットテスト
   - 既知パターンのマッチ検出、距離・長さの正確性
-- [ ] A-T2: 圧縮率テスト
+- [x] A-T2: 圧縮率テスト
   - level 1~9 で圧縮率が向上すること
   - fflate と同等の圧縮率であること（許容範囲 ±10%）
-- [ ] A-T3: ラウンドトリップテスト（全レベル）
+- [x] A-T3: ラウンドトリップテスト（全レベル）
   - 各 level でデータが正しく復元されること
 
 ## Phase B: Dictionary サポート
 
-- [ ] B-1: deflate 辞書圧縮
+- [x] B-1: deflate 辞書圧縮
   - DeflateOptions.dictionary を dflt エンジンに渡す
   - ウィンドウ初期化に辞書を使用
-- [ ] B-2: inflate 辞書伸長
+- [x] B-2: inflate 辞書伸長
   - InflateOptions.dictionary を inflt に渡す
   - 辞書なし圧縮データへの辞書適用時のエラー処理
-- [ ] B-3: zlib 辞書 (FDICT フラグ)
+- [x] B-3: zlib 辞書 (FDICT フラグ)
   - zlibSync: FDICT=1 のヘッダ出力 + DICTID (Adler-32)
   - unzlibSync: FDICT=1 時の辞書ID検証と辞書適用
-- [ ] B-T1: 辞書ラウンドトリップテスト
-- [ ] B-T2: 辞書なしデータに辞書適用エラーテスト
-- [ ] B-T3: zlib FDICT フラグ生成・検証テスト
+- [x] B-T1: 辞書ラウンドトリップテスト
+- [x] B-T2: 辞書なしデータに辞書適用エラーテスト
+- [x] B-T3: zlib FDICT フラグ生成・検証テスト
 
 ## Phase C: 解凍オプション拡張
 
 gunzip_sync / unzlib_sync / decompress_sync が opts を受け付けない。
 
-- [ ] C-1: gunzip_sync に InflateOptions を追加
+- [x] C-1: gunzip_sync に InflateOptions を追加
   - `gunzip_sync(data, opts?: InflateOptions)` シグネチャ
   - size ヒントによる出力バッファ事前割り当て
-- [ ] C-2: unzlib_sync に InflateOptions を追加
+- [x] C-2: unzlib_sync に InflateOptions を追加
   - `unzlib_sync(data, opts?: InflateOptions)` シグネチャ
-- [ ] C-3: decompress_sync に InflateOptions を追加
+- [x] C-3: decompress_sync に InflateOptions を追加
   - `decompress_sync(data, opts?: InflateOptions)` シグネチャ
-- [ ] C-4: トップレベル re-export のシグネチャ更新
-- [ ] C-T1: 各解凍関数の opts パラメータテスト
+- [x] C-4: トップレベル re-export のシグネチャ更新
+- [x] C-T1: 各解凍関数の opts パラメータテスト
 
 ## Phase D: ZIP 機能拡張
 
 ### per-entry オプション
-- [ ] D-1: zip_sync per-entry ZipEntryOptions
+- [x] D-1: zip_sync per-entry ZipEntryOptions
   - `zip_sync(files: Array[(String, FixedArray[Byte], ZipEntryOptions?)])`
   - エントリごとの level, mtime, attrs, comment, extra
-- [ ] D-2: unzip_sync フィルタ機能
+- [x] D-2: unzip_sync フィルタ機能
   - `unzip_sync(data, filter?: (UnzipFileInfo) -> Bool)`
   - 特定ファイルのみ解凍
 
 ### ZIP メタデータ拡張
-- [ ] D-3: UnzipFileInfo フィールド追加
+- [x] D-3: UnzipFileInfo フィールド追加
   - mtime, attrs, comment, extra フィールド
   - fflate の UnzipFile 型との互換
-- [ ] D-4: ZIP64 読み取りサポート
+- [x] D-4: ZIP64 読み取りサポート
   - z64e (ZIP64 Extended Information) パース
   - 4GB超ファイルの読み取り対応
-- [ ] D-5: ZIP ファイルコメント (アーカイブレベル)
+- [x] D-5: ZIP ファイルコメント (アーカイブレベル)
   - EOCD コメント読み書き
 
 ### テスト
-- [ ] D-T1: per-entry オプションテスト
-- [ ] D-T2: フィルタ付き unzip テスト
-- [ ] D-T3: ZIP64 読み取りテスト
-- [ ] D-T4: 各メタデータフィールドのラウンドトリップテスト
+- [x] D-T1: per-entry オプションテスト
+- [x] D-T2: フィルタ付き unzip テスト
+- [x] D-T3: ZIP64 読み取りテスト
+- [x] D-T4: 各メタデータフィールドのラウンドトリップテスト
 
 ## Phase E: ストリーミング改善
 
 現在のストリーミングはバッファリング方式（全チャンクを蓄積して finish 時に一括処理）。
 
 ### 真のインクリメンタル処理
-- [ ] E-1: Deflate ストリームのインクリメンタル圧縮
+- [x] E-1: Deflate ストリームのインクリメンタル圧縮
   - push ごとに部分出力を生成
   - 32KB スライディングウィンドウの管理
-- [ ] E-2: Inflate ストリームのインクリメンタル伸長
+- [x] E-2: Inflate ストリームのインクリメンタル伸長
   - push ごとに部分出力を生成
   - 状態マシンの中断・再開
-- [ ] E-3: Gzip/Gunzip ストリームのインクリメンタル化
+- [x] E-3: Gzip/Gunzip ストリームのインクリメンタル化
   - ヘッダ/フッタのストリーミング読み書き
-- [ ] E-4: Zlib/Unzlib ストリームのインクリメンタル化
-- [ ] E-5: Decompress ストリームのインクリメンタル化
+- [x] E-4: Zlib/Unzlib ストリームのインクリメンタル化
+- [x] E-5: Decompress ストリームのインクリメンタル化
 
 ### コールバック対応
-- [ ] E-6: ondata コールバック
+- [x] E-6: ondata コールバック
   - push 時に部分出力をコールバックで通知
   - fflate の `ondata(chunk, final)` 互換
-- [ ] E-7: Gunzip onmember コールバック
+- [x] E-7: Gunzip onmember コールバック
   - マルチメンバーGZIP の各メンバー完了通知
-- [ ] E-8: flush() メソッド
+- [x] E-8: flush() メソッド
   - 保留中のデータを強制出力
 
 ### ZIP ストリーミング
-- [ ] E-9: Zip ストリーミング作成
+- [x] E-9: Zip ストリーミング作成
   - ZipPassThrough (Store) / ZipDeflate (Deflate) 入力クラス
   - ファイル単位でのストリーミング追加
-- [ ] E-10: Unzip ストリーミング解凍
+- [x] E-10: Unzip ストリーミング解凍
   - onfile コールバックでファイル単位通知
   - register(method, handler) でカスタムデコーダ登録
 
 ### テスト
-- [ ] E-T1: インクリメンタル出力の正確性テスト
-- [ ] E-T2: 大規模データのストリーミングテスト（メモリ効率）
-- [ ] E-T3: ZIP ストリーミング作成・解凍テスト
-- [ ] E-T4: ondata / onmember コールバックテスト
+- [x] E-T1: インクリメンタル出力の正確性テスト
+- [x] E-T2: 大規模データのストリーミングテスト（メモリ効率）
+- [x] E-T3: ZIP ストリーミング作成・解凍テスト
+- [x] E-T4: ondata / onmember コールバックテスト
 
 ## Phase F: ユーティリティ・エイリアス
 
-- [ ] F-1: compress_sync 追加 (gzip_sync のエイリアス)
+- [x] F-1: compress_sync 追加 (gzip_sync のエイリアス)
   - fflate の compressSync 互換
-- [ ] F-2: strToU8 / strFromU8 実装
+- [x] F-2: strToU8 / strFromU8 実装
   - UTF-8 ↔ FixedArray[Byte] 変換
   - latin1 オプション対応
-- [ ] F-3: EncodeUTF8 / DecodeUTF8 ストリーミング
+- [x] F-3: EncodeUTF8 / DecodeUTF8 ストリーミング
   - 文字列 ↔ バイト列のストリーミング変換
-- [ ] F-T1: compress_sync ラウンドトリップテスト
-- [ ] F-T2: strToU8/strFromU8 テスト（ASCII, マルチバイト, latin1）
-- [ ] F-T3: UTF-8 ストリーミングテスト
+- [x] F-T1: compress_sync ラウンドトリップテスト
+- [x] F-T2: strToU8/strFromU8 テスト（ASCII, マルチバイト, latin1）
+- [x] F-T3: UTF-8 ストリーミングテスト
 
 ## Phase G: 互換性検証・品質保証
 
-- [ ] G-1: fflate 出力との相互運用テスト
+- [x] G-1: fflate 出力との相互運用テスト
   - fflate で圧縮 → moonzip で伸長（全フォーマット）
   - moonzip で圧縮 → fflate で伸長（全フォーマット）
-- [ ] G-2: システムツール互換テスト
+- [x] G-2: システムツール互換テスト
   - gzip コマンドとの互換
   - unzip コマンドとの互換
   - zlib (Python) との互換
-- [ ] G-3: 圧縮率ベンチマーク
+- [x] G-3: 圧縮率ベンチマーク
   - Canterbury Corpus / Silesia Corpus 等の標準テストセット
   - fflate との圧縮率比較表
-- [ ] G-4: 大規模データテスト
+- [x] G-4: 大規模データテスト
   - 1MB / 10MB / 100MB データ
   - メモリ使用量の検証
-- [ ] G-5: エッジケース網羅テスト
+- [x] G-5: エッジケース網羅テスト
   - 空データ, 1バイト, 最大長, ランダムデータ
   - 全圧縮レベル × 全フォーマット
 
@@ -290,14 +294,14 @@ gunzip_sync / unzlib_sync / decompress_sync が opts を受け付けない。
 
 旧 TASKS.md (v1) にあった未対応項目のうち、上記フェーズに含まれないもの。
 
-- [ ] H-1: GZIP マルチメンバー対応
+- [x] H-1: GZIP マルチメンバー対応
   - 連結された複数 GZIP メンバーの正しい解凍
   - 各メンバーの CRC32/ISIZE 個別検証
-- [ ] H-2: cmd/ デモ・CLIツールの整備
+- [x] H-2: cmd/ デモ・CLIツールの整備
   - compress / decompress サブコマンド
   - ファイル入出力対応
-- [ ] H-3: README / API ドキュメント更新
+- [x] H-3: README / API ドキュメント更新
   - 全公開API のドキュメント
   - 使用例の追加
-- [ ] H-4: AGENTS.md 更新
+- [x] H-4: AGENTS.md 更新
   - 現在のパッケージ構成を反映

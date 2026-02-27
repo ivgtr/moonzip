@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn unzlib_sync(FixedArray[Byte], dictionary? : FixedArray[Byte]?) -> FixedArray[Byte] raise @types.FlateError
+pub fn unzlib_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
 
 pub fn zlib_sync(FixedArray[Byte], opts? : @types.ZlibOptions) -> FixedArray[Byte] raise @types.FlateError
 

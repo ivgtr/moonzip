@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn gunzip_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+pub fn gunzip_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
 
 pub fn gzip_sync(FixedArray[Byte], opts? : @types.GzipOptions) -> FixedArray[Byte] raise @types.FlateError
 

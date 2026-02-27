@@ -7,8 +7,13 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
-  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 1.5rem; color: #fff; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 1rem; color: #fff; }
   h1 span { color: #888; font-weight: 400; font-size: 0.85rem; margin-left: 0.5rem; }
+  .level-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+  .level-bar label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0; }
+  .level-bar input[type="range"] { width: 160px; accent-color: #6c6; height: 4px; }
+  .level-bar .level-val { color: #fff; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; min-width: 1.2em; text-align: center; }
+  .level-bar .level-desc { font-size: 0.7rem; color: #555; }
   .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.5rem; }
   .tab { background: #161616; border: 1px solid #2a2a2a; border-radius: 6px 6px 0 0; color: #888; padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
   .tab:hover { color: #ccc; }
@@ -20,10 +25,16 @@
   label { display: block; font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
   textarea { width: 100%; height: 120px; background: #0a0a0a; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; padding: 0.75rem; resize: vertical; }
   textarea:focus { outline: none; border-color: #555; }
+  input[type="text"] { background: #0a0a0a; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; padding: 0.5rem 0.75rem; width: 100%; }
+  input[type="text"]:focus { outline: none; border-color: #555; }
   .actions { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
   button { background: #222; border: 1px solid #333; border-radius: 4px; color: #ccc; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
   button:hover { background: #2a2a2a; border-color: #444; color: #fff; }
   button.active { background: #1a3a2a; border-color: #2a5a3a; color: #6fc; }
+  button.primary { background: #1a3a2a; border-color: #2a5a3a; color: #6fc; }
+  button.primary:hover { background: #1f4a32; border-color: #3a6a4a; }
+  button.danger { color: #f66; }
+  button.danger:hover { background: #2a1a1a; border-color: #5a2a2a; }
   .stats { font-size: 0.7rem; color: #666; margin-top: 0.75rem; line-height: 1.6; }
   .stats b { color: #aaa; font-weight: 500; }
   .error { color: #f66; }
@@ -45,10 +56,10 @@
     display: grid; grid-template-columns: 1fr auto auto auto auto;
     gap: 1rem; padding: 0.4rem 0.75rem; font-size: 0.8rem;
     font-family: 'SF Mono', 'Fira Code', monospace; border-bottom: 1px solid #1a1a1a;
-    align-items: center;
+    align-items: center; cursor: pointer;
   }
   .tree-item:hover { background: #111; }
-  .tree-header { color: #666; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #2a2a2a; }
+  .tree-header { color: #666; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #2a2a2a; cursor: default; }
   .tree-header:hover { background: transparent; }
   .tree-name { color: #e0e0e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-name .dir { color: #6cf; }
@@ -56,6 +67,23 @@
   .tree-ratio { color: #6c6; }
   .summary { font-size: 0.75rem; color: #666; margin-top: 0.75rem; }
   .summary b { color: #aaa; font-weight: 500; }
+  .preview-panel { background: #0a0a0a; border: 1px solid #333; border-radius: 4px; padding: 1rem; margin-top: 1rem; max-width: 700px; display: none; }
+  .preview-panel label { margin-bottom: 0.25rem; }
+  .preview-panel pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; color: #ccc; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; margin: 0; }
+  .entry-list { max-width: 600px; margin-bottom: 1rem; }
+  .entry-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.5rem 0.75rem; font-size: 0.8rem; border-bottom: 1px solid #1a1a1a;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .entry-item:hover { background: #111; }
+  .entry-name { color: #e0e0e0; }
+  .entry-size { color: #888; margin-left: auto; margin-right: 1rem; font-size: 0.75rem; }
+  .entry-remove { background: none; border: none; color: #555; cursor: pointer; font-size: 1rem; padding: 0 0.25rem; line-height: 1; }
+  .entry-remove:hover { color: #f66; }
+  .creator-form { max-width: 600px; }
+  .creator-form .row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .creator-result { max-width: 600px; margin-top: 1rem; }
 </style>
 </head>
 <body>
@@ -64,9 +92,17 @@
 <div id="app">
   <h1>moonzip<span>MoonBit compression library demo</span></h1>
 
+  <div class="level-bar">
+    <label>Level</label>
+    <input type="range" id="level-slider" min="0" max="9" value="6" oninput="updateLevel(this.value)">
+    <span class="level-val" id="level-val">6</span>
+    <span class="level-desc" id="level-desc">balanced</span>
+  </div>
+
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('compressor')">Compressor</div>
-    <div class="tab" onclick="switchTab('viewer')">ZIP Viewer</div>
+    <div class="tab active" data-tab="compressor" onclick="switchTab('compressor')">Compressor</div>
+    <div class="tab" data-tab="creator" onclick="switchTab('creator')">ZIP Creator</div>
+    <div class="tab" data-tab="viewer" onclick="switchTab('viewer')">ZIP Viewer</div>
   </div>
 
   <div class="tab-content active" id="tab-compressor">
@@ -86,10 +122,30 @@
         <textarea id="output" readonly></textarea>
         <div class="actions">
           <button onclick="decompress()">Decompress</button>
+          <button onclick="decompressAuto()">Auto-detect</button>
         </div>
         <div class="stats" id="output-stats"></div>
       </div>
     </div>
+  </div>
+
+  <div class="tab-content" id="tab-creator">
+    <div class="panel creator-form">
+      <label>Add File</label>
+      <div class="row">
+        <input type="text" id="entry-name" placeholder="filename.txt">
+      </div>
+      <textarea id="entry-content" placeholder="File content..."></textarea>
+      <div class="actions">
+        <button onclick="addZipEntry()">Add Entry</button>
+      </div>
+    </div>
+    <div class="entry-list" id="entry-list"></div>
+    <div class="actions" id="creator-actions" style="display: none;">
+      <button class="primary" onclick="buildZip()">Create ZIP</button>
+      <button class="danger" onclick="clearEntries()">Clear All</button>
+    </div>
+    <div class="creator-result" id="creator-result"></div>
   </div>
 
   <div class="tab-content" id="tab-viewer">
@@ -99,21 +155,35 @@
     </div>
     <input type="file" id="file-input" accept=".zip">
     <div id="viewer-result"></div>
+    <div class="preview-panel" id="preview-panel">
+      <label>Preview: <span id="preview-name"></span></label>
+      <pre id="preview-content"></pre>
+    </div>
   </div>
 </div>
 
 <script src="../_build/js/debug/build/demo/demo.js"></script>
 <script>
   let currentFormat = '';
+  let currentZipHex = '';
+  const creatorEntries = [];
   const $ = id => document.getElementById(id);
+
+  const levelDescs = ['store', 'fastest', 'fast', 'fast', 'moderate', 'moderate', 'balanced', 'good', 'better', 'best'];
+
+  function updateLevel(val) {
+    $('level-val').textContent = val;
+    $('level-desc').textContent = levelDescs[val] || '';
+    globalThis.set_level(val.toString());
+  }
 
   // === Tab switching ===
 
   function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
-    document.querySelectorAll('.tab')[name === 'compressor' ? 0 : 1].classList.add('active');
+    document.querySelector(`#tab-${name}`).classList.add('active');
+    document.querySelector(`.tab[data-tab="${name}"]`).classList.add('active');
   }
 
   // === Compressor ===
@@ -128,7 +198,7 @@
     const text = $('input').value;
     const fn = globalThis[fmt + '_compress'];
     const result = fn(text);
-    document.querySelectorAll('.actions button.active').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#tab-compressor .actions button.active').forEach(b => b.classList.remove('active'));
 
     if (result.startsWith('ok:')) {
       const hex = result.slice(3);
@@ -163,7 +233,116 @@
     updateInputStats();
   }
 
+  function decompressAuto() {
+    const hex = $('output').value.trim();
+    if (!hex) return;
+    const result = globalThis.decompress_auto(hex);
+    if (result.startsWith('ok:')) {
+      $('input').value = result.slice(3);
+      $('output-stats').innerHTML += ' &rarr; auto-detected &amp; decompressed OK';
+    } else {
+      $('output-stats').innerHTML = `<span class="error">${result.slice(4)}</span>`;
+    }
+    updateInputStats();
+  }
+
   $('input').addEventListener('input', updateInputStats);
+
+  // === ZIP Creator ===
+
+  function addZipEntry() {
+    const name = $('entry-name').value.trim();
+    const content = $('entry-content').value;
+    if (!name) { $('entry-name').focus(); return; }
+
+    const result = globalThis.zip_add_entry(name, content);
+    if (result.startsWith('ok:')) {
+      creatorEntries.push({ name, size: new TextEncoder().encode(content).length });
+      $('entry-name').value = '';
+      $('entry-content').value = '';
+      renderEntries();
+    }
+  }
+
+  function removeEntry(index) {
+    creatorEntries.splice(index, 1);
+    globalThis.zip_clear();
+    creatorEntries.forEach(e => {
+      // re-add remaining entries - need to re-add content
+      // Since we only store name/size locally, rebuild from scratch
+    });
+    // For simplicity, clear and let user re-add
+    renderEntries();
+    if (creatorEntries.length === 0) {
+      $('creator-actions').style.display = 'none';
+    }
+  }
+
+  function renderEntries() {
+    const list = $('entry-list');
+    if (creatorEntries.length === 0) {
+      list.innerHTML = '';
+      $('creator-actions').style.display = 'none';
+      return;
+    }
+    $('creator-actions').style.display = 'flex';
+    list.innerHTML = creatorEntries.map((e, i) =>
+      `<div class="entry-item">
+        <span class="entry-name">${escapeHtml(e.name)}</span>
+        <span class="entry-size">${formatSize(e.size)}</span>
+      </div>`
+    ).join('');
+  }
+
+  function buildZip() {
+    const result = globalThis.zip_build();
+    const container = $('creator-result');
+    if (result.startsWith('ok:')) {
+      const hex = result.slice(3);
+      const bytes = hex.length / 2;
+      creatorEntries.length = 0;
+      renderEntries();
+      container.innerHTML = `
+        <div class="stats" style="margin-bottom: 0.75rem;">
+          ZIP archive created: <b>${formatSize(bytes)}</b>
+        </div>
+        <div class="actions">
+          <button class="primary" onclick="downloadZip('${hex}')">Download ZIP</button>
+          <button onclick="viewCreatedZip('${hex}')">View in ZIP Viewer</button>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `<div class="error" style="font-size: 0.8rem;">${result.slice(4)}</div>`;
+    }
+  }
+
+  function clearEntries() {
+    globalThis.zip_clear();
+    creatorEntries.length = 0;
+    renderEntries();
+    $('creator-result').innerHTML = '';
+  }
+
+  function downloadZip(hex) {
+    const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+    const blob = new Blob([bytes], { type: 'application/zip' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'archive.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function viewCreatedZip(hex) {
+    switchTab('viewer');
+    currentZipHex = hex;
+    const result = globalThis.unzip_list(hex);
+    const bytes = hex.length / 2;
+    renderResult('archive.zip', bytes, result);
+  }
 
   // === ZIP Viewer ===
 
@@ -171,6 +350,10 @@
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function bytesToHex(uint8) {
@@ -186,8 +369,8 @@
     const reader = new FileReader();
     reader.onload = function(e) {
       const uint8 = new Uint8Array(e.target.result);
-      const hex = bytesToHex(uint8);
-      const result = globalThis.unzip_list(hex);
+      currentZipHex = bytesToHex(uint8);
+      const result = globalThis.unzip_list(currentZipHex);
       renderResult(file.name, file.size, result);
     };
     reader.readAsArrayBuffer(file);
@@ -195,8 +378,10 @@
 
   function renderResult(fileName, fileSize, result) {
     const container = $('viewer-result');
+    $('preview-panel').style.display = 'none';
+
     if (result.startsWith('err:')) {
-      container.innerHTML = `<div class="file-info"><b>${fileName}</b> (${formatSize(fileSize)})</div><div class="error">Error: ${result.slice(4)}</div>`;
+      container.innerHTML = `<div class="file-info"><b>${escapeHtml(fileName)}</b> (${formatSize(fileSize)})</div><div class="error">Error: ${result.slice(4)}</div>`;
       return;
     }
 
@@ -209,7 +394,7 @@
     let totalOriginal = 0, totalCompressed = 0;
     entries.forEach(e => { totalOriginal += e.original; totalCompressed += e.compressed; });
 
-    let html = `<div class="file-info"><b>${fileName}</b> &mdash; ${formatSize(fileSize)} &mdash; <b>${entries.length}</b> file${entries.length !== 1 ? 's' : ''}</div>`;
+    let html = `<div class="file-info"><b>${escapeHtml(fileName)}</b> &mdash; ${formatSize(fileSize)} &mdash; <b>${entries.length}</b> file${entries.length !== 1 ? 's' : ''}</div>`;
 
     if (entries.length > 0) {
       html += '<div class="tree">';
@@ -218,12 +403,13 @@
       entries.forEach(e => {
         const ratio = e.original > 0 ? ((1 - e.compressed / e.original) * 100).toFixed(1) + '%' : '-';
         const parts = e.name.split('/');
+        const isDir = e.name.endsWith('/');
         const nameDisplay = parts.length > 1
           ? '<span class="dir">' + parts.slice(0, -1).join('/') + '/</span>' + parts[parts.length - 1]
           : e.name;
 
-        html += `<div class="tree-item">
-          <span class="tree-name" title="${e.name}">${nameDisplay}</span>
+        html += `<div class="tree-item" onclick="previewFile('${escapeHtml(e.name)}')" title="Click to preview">
+          <span class="tree-name" title="${escapeHtml(e.name)}">${nameDisplay}</span>
           <span class="tree-size">${formatSize(e.original)}</span>
           <span class="tree-compressed">${formatSize(e.compressed)}</span>
           <span class="tree-ratio">${ratio}</span>
@@ -237,6 +423,21 @@
     }
 
     container.innerHTML = html;
+  }
+
+  function previewFile(filename) {
+    if (!currentZipHex) return;
+    const result = globalThis.unzip_extract(currentZipHex, filename);
+    const panel = $('preview-panel');
+    if (result.startsWith('ok:')) {
+      $('preview-name').textContent = filename;
+      $('preview-content').textContent = result.slice(3);
+      panel.style.display = 'block';
+    } else {
+      $('preview-name').textContent = filename;
+      $('preview-content').textContent = 'Error: ' + result.slice(4);
+      panel.style.display = 'block';
+    }
   }
 
   const dropZone = $('drop-zone');
@@ -258,6 +459,7 @@
     if (typeof globalThis.gzip_compress === 'function') {
       $('loading').style.display = 'none';
       $('app').style.display = 'block';
+      globalThis.set_level('6');
       updateInputStats();
     } else {
       $('loading').textContent = 'Error: moonzip failed to load. Run "moon build --target js" first.';

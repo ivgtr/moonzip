@@ -2,17 +2,25 @@
 package "ivgtr/moonzip/internal/huffman"
 
 // Values
+pub fn clen(FixedArray[Int], FixedArray[Int]) -> Int
+
 pub let clim : FixedArray[Int]
 
 pub fn dyn_build(FixedArray[Int], FixedArray[Int]) -> (FixedArray[Int], Int, FixedArray[Int], Int)
 
 pub fn enc_pair(Int, Int) -> (Int, Int)
 
+pub let fclim : FixedArray[Int]
+
 pub let fd : FixedArray[Int]
 
 pub let fdeb : FixedArray[Int]
 
+pub let fdm : FixedArray[Int]
+
 pub let fdrm : FixedArray[Int]
+
+pub let fdt : FixedArray[Int]
 
 pub let fl : FixedArray[Int]
 
@@ -25,6 +33,10 @@ pub let flrm : FixedArray[Int]
 pub let flt : FixedArray[Int]
 
 pub fn h_map(FixedArray[Int], Int, HMapDirection) -> FixedArray[Int]
+
+pub fn h_tree(FixedArray[Int], Int) -> HTreeResult
+
+pub fn lc(FixedArray[Int]) -> LcResult
 
 pub fn max_bits(FixedArray[Int]) -> Int
 

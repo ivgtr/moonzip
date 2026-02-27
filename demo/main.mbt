@@ -65,7 +65,8 @@ fn bytes_to_str(data : FixedArray[Byte]) -> String {
 fn bytes_to_hex(data : FixedArray[Byte]) -> String {
   let sb = StringBuilder::new()
   let hex_chars : FixedArray[Char] = [
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
+    'e', 'f',
   ]
   for i = 0; i < data.length(); i = i + 1 {
     let b = data[i].to_int()
@@ -105,13 +106,50 @@ fn hex_val(c : Char) -> Int {
   }
 }
 
-// Exported functions: take String, return "ok:hex_data" or "err:message"
+///|
+fn parse_int(s : String) -> Int {
+  let mut n = 0
+  for c in s {
+    let d = c.to_int() - 48
+    if d >= 0 && d <= 9 {
+      n = n * 10 + d
+    }
+  }
+  n
+}
+
+// Compression level state
+
+///|
+priv struct DemoState {
+  mut level : Int
+}
+
+///|
+let demo_state : DemoState = { level: 6 }
+
+///|
+pub fn set_level(level_str : String) -> String {
+  let lv = parse_int(level_str)
+  demo_state.level = if lv > 9 { 9 } else { lv }
+  "ok:" + demo_state.level.to_string()
+}
+
+// Compress / Decompress
 
 ///|
 pub fn gzip_compress(input : String) -> String {
   let data = str_to_bytes(input)
   try {
-    let compressed = @gzip.gzip_sync(data)
+    let opts : @types.GzipOptions = {
+      level: demo_state.level,
+      mem: 4,
+      mtime: None,
+      filename: None,
+      comment: None,
+      extra: None,
+    }
+    let compressed = @gzip.gzip_sync(data, opts~)
     "ok:" + bytes_to_hex(compressed)
   } catch {
     @types.FlateError(e) => "err:" + e.to_string()
@@ -133,7 +171,12 @@ pub fn gzip_decompress(hex_input : String) -> String {
 pub fn zlib_compress(input : String) -> String {
   let data = str_to_bytes(input)
   try {
-    let compressed = @zlib.zlib_sync(data)
+    let opts : @types.ZlibOptions = {
+      level: demo_state.level,
+      mem: 4,
+      dictionary: None,
+    }
+    let compressed = @zlib.zlib_sync(data, opts~)
     "ok:" + bytes_to_hex(compressed)
   } catch {
     @types.FlateError(e) => "err:" + e.to_string()
@@ -155,7 +198,12 @@ pub fn zlib_decompress(hex_input : String) -> String {
 pub fn deflate_compress(input : String) -> String {
   let data = str_to_bytes(input)
   try {
-    let compressed = @deflate.deflate_sync(data)
+    let opts : @types.DeflateOptions = {
+      level: demo_state.level,
+      mem: 4,
+      dictionary: None,
+    }
+    let compressed = @deflate.deflate_sync(data, opts~)
     "ok:" + bytes_to_hex(compressed)
   } catch {
     @types.FlateError(e) => "err:" + e.to_string()
@@ -174,13 +222,43 @@ pub fn deflate_decompress(hex_input : String) -> String {
 }
 
 ///|
+pub fn decompress_auto(hex_input : String) -> String {
+  let data = hex_to_bytes(hex_input)
+  try {
+    let result = if data.length() >= 2 {
+      if data[0] == b'\x1F' && data[1] == b'\x8B' {
+        @gzip.gunzip_sync(data)
+      } else {
+        let cmf = data[0].to_int()
+        let flg = data[1].to_int()
+        let cm = cmf & 0x0F
+        let cinfo = (cmf >> 4) & 0x0F
+        if cm == 8 && cinfo <= 7 && (cmf * 256 + flg) % 31 == 0 {
+          @zlib.unzlib_sync(data)
+        } else {
+          @deflate.inflate_sync(data)
+        }
+      }
+    } else {
+      @deflate.inflate_sync(data)
+    }
+    "ok:" + bytes_to_str(result)
+  } catch {
+    @types.FlateError(e) => "err:" + e.to_string()
+  }
+}
+
+// ZIP list / extract
+
+///|
 pub fn unzip_list(hex_input : String) -> String {
   let data = hex_to_bytes(hex_input)
   try {
     let entries = @zip.unzip_list(data)
     let sb = StringBuilder::new()
     sb.write_string("ok:")
-    for i, entry in entries {
+    for i = 0; i < entries.length(); i = i + 1 {
+      let entry = entries[i]
       if i > 0 {
         sb.write_char('\n')
       }
@@ -204,6 +282,70 @@ pub fn unzip_list(hex_input : String) -> String {
   } catch {
     @types.FlateError(e) => "err:" + e.to_string()
   }
+}
+
+///|
+pub fn unzip_extract(hex_input : String, filename : String) -> String {
+  let data = hex_to_bytes(hex_input)
+  try {
+    let files = @zip.unzip_sync(data)
+    let mut i = 0
+    while i < files.length() {
+      let (name, content) = files[i]
+      if name == filename {
+        return "ok:" + bytes_to_str(content)
+      }
+      i = i + 1
+    }
+    "err:File not found: " + filename
+  } catch {
+    @types.FlateError(e) => "err:" + e.to_string()
+  }
+}
+
+// ZIP creator
+
+///|
+let zip_entries : Array[(String, String)] = Array::new()
+
+///|
+pub fn zip_add_entry(name : String, content : String) -> String {
+  zip_entries.push((name, content))
+  "ok:" + zip_entries.length().to_string()
+}
+
+///|
+pub fn zip_build() -> String {
+  let files : Array[(String, FixedArray[Byte])] = Array::new()
+  let mut i = 0
+  while i < zip_entries.length() {
+    let (name, content) = zip_entries[i]
+    files.push((name, str_to_bytes(content)))
+    i = i + 1
+  }
+  try {
+    let opts : @types.ZipOptions = {
+      level: demo_state.level,
+      mtime: None,
+      comment: None,
+    }
+    let result = @zip.zip_sync(files, opts~)
+    // clear entries after successful build
+    while zip_entries.length() > 0 {
+      let _ = zip_entries.pop()
+    }
+    "ok:" + bytes_to_hex(result)
+  } catch {
+    @types.FlateError(e) => "err:" + e.to_string()
+  }
+}
+
+///|
+pub fn zip_clear() -> String {
+  while zip_entries.length() > 0 {
+    let _ = zip_entries.pop()
+  }
+  "ok:0"
 }
 
 ///|

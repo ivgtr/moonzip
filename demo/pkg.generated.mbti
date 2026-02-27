@@ -2,6 +2,8 @@
 package "ivgtr/moonzip/demo"
 
 // Values
+pub fn decompress_auto(String) -> String
+
 pub fn deflate_compress(String) -> String
 
 pub fn deflate_decompress(String) -> String
@@ -10,7 +12,17 @@ pub fn gzip_compress(String) -> String
 
 pub fn gzip_decompress(String) -> String
 
+pub fn set_level(String) -> String
+
+pub fn unzip_extract(String, String) -> String
+
 pub fn unzip_list(String) -> String
+
+pub fn zip_add_entry(String, String) -> String
+
+pub fn zip_build() -> String
+
+pub fn zip_clear() -> String
 
 pub fn zlib_compress(String) -> String
 

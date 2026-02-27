@@ -6,7 +6,35 @@ import {
 }
 
 // Values
-pub fn decompress_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+pub fn adler32(FixedArray[Byte]) -> UInt
+
+pub fn compress_sync(FixedArray[Byte], opts? : @types.GzipOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn crc32(FixedArray[Byte]) -> UInt
+
+pub fn decompress_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn deflate_sync(FixedArray[Byte], opts? : @types.DeflateOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn gunzip_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn gzip_sync(FixedArray[Byte], opts? : @types.GzipOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn inflate_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn str_from_u8(FixedArray[Byte], latin1? : Bool) -> String raise @types.FlateError
+
+pub fn str_to_u8(String, latin1? : Bool) -> FixedArray[Byte]
+
+pub fn unzip_list(FixedArray[Byte]) -> Array[@types.UnzipFileInfo] raise @types.FlateError
+
+pub fn unzip_sync(FixedArray[Byte]) -> Array[(String, FixedArray[Byte])] raise @types.FlateError
+
+pub fn unzlib_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn zip_sync(Array[(String, FixedArray[Byte])], opts? : @types.ZipOptions) -> FixedArray[Byte] raise @types.FlateError
+
+pub fn zlib_sync(FixedArray[Byte], opts? : @types.ZlibOptions) -> FixedArray[Byte] raise @types.FlateError
 
 // Errors
 

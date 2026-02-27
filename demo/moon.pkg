@@ -11,13 +11,19 @@ options(
   link: {
     "js": {
       "exports": [
+        "set_level",
         "gzip_compress",
         "gzip_decompress",
         "zlib_compress",
         "zlib_decompress",
         "deflate_compress",
         "deflate_decompress",
+        "decompress_auto",
         "unzip_list",
+        "unzip_extract",
+        "zip_add_entry",
+        "zip_build",
+        "zip_clear",
       ],
       "format": "iife",
     },
