@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>moonzip demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 1.5rem; color: #fff; }
+  h1 span { color: #888; font-weight: 400; font-size: 0.85rem; margin-left: 0.5rem; }
+  .tabs { display: flex; gap: 0.25rem; margin-bottom: 1.5rem; }
+  .tab { background: #161616; border: 1px solid #2a2a2a; border-radius: 6px 6px 0 0; color: #888; padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .tab:hover { color: #ccc; }
+  .tab.active { background: #1a1a1a; border-bottom-color: #1a1a1a; color: #fff; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 900px; }
+  .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 8px; padding: 1.25rem; }
+  label { display: block; font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  textarea { width: 100%; height: 120px; background: #0a0a0a; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; padding: 0.75rem; resize: vertical; }
+  textarea:focus { outline: none; border-color: #555; }
+  .actions { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
+  button { background: #222; border: 1px solid #333; border-radius: 4px; color: #ccc; padding: 0.4rem 0.8rem; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
+  button:hover { background: #2a2a2a; border-color: #444; color: #fff; }
+  button.active { background: #1a3a2a; border-color: #2a5a3a; color: #6fc; }
+  .stats { font-size: 0.7rem; color: #666; margin-top: 0.75rem; line-height: 1.6; }
+  .stats b { color: #aaa; font-weight: 500; }
+  .error { color: #f66; }
+  #loading { text-align: center; color: #666; padding: 3rem; }
+  #app { display: none; }
+  .drop-zone {
+    border: 2px dashed #333; border-radius: 8px; padding: 3rem 2rem;
+    text-align: center; color: #666; cursor: pointer; transition: all 0.2s;
+    max-width: 600px; margin-bottom: 1.5rem;
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #555; color: #aaa; background: #111; }
+  .drop-zone p { font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .drop-zone small { font-size: 0.7rem; color: #555; }
+  input[type="file"] { display: none; }
+  .file-info { font-size: 0.75rem; color: #888; margin-bottom: 1rem; }
+  .file-info b { color: #aaa; font-weight: 500; }
+  .tree { max-width: 700px; }
+  .tree-item {
+    display: grid; grid-template-columns: 1fr auto auto auto auto;
+    gap: 1rem; padding: 0.4rem 0.75rem; font-size: 0.8rem;
+    font-family: 'SF Mono', 'Fira Code', monospace; border-bottom: 1px solid #1a1a1a;
+    align-items: center;
+  }
+  .tree-item:hover { background: #111; }
+  .tree-header { color: #666; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #2a2a2a; }
+  .tree-header:hover { background: transparent; }
+  .tree-name { color: #e0e0e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tree-name .dir { color: #6cf; }
+  .tree-size, .tree-compressed, .tree-ratio, .tree-method { text-align: right; color: #888; white-space: nowrap; }
+  .tree-ratio { color: #6c6; }
+  .summary { font-size: 0.75rem; color: #666; margin-top: 0.75rem; }
+  .summary b { color: #aaa; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading moonzip...</div>
+<div id="app">
+  <h1>moonzip<span>MoonBit compression library demo</span></h1>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('compressor')">Compressor</div>
+    <div class="tab" onclick="switchTab('viewer')">ZIP Viewer</div>
+  </div>
+
+  <div class="tab-content active" id="tab-compressor">
+    <div class="grid">
+      <div class="panel">
+        <label>Input</label>
+        <textarea id="input" placeholder="Type text here...">The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.</textarea>
+        <div class="actions">
+          <button onclick="compress('gzip')" id="btn-gzip">GZIP</button>
+          <button onclick="compress('zlib')" id="btn-zlib">Zlib</button>
+          <button onclick="compress('deflate')" id="btn-deflate">DEFLATE</button>
+        </div>
+        <div class="stats" id="input-stats"></div>
+      </div>
+      <div class="panel">
+        <label>Compressed <span id="format-label"></span></label>
+        <textarea id="output" readonly></textarea>
+        <div class="actions">
+          <button onclick="decompress()">Decompress</button>
+        </div>
+        <div class="stats" id="output-stats"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-viewer">
+    <div class="drop-zone" id="drop-zone">
+      <p>Drop a ZIP file here</p>
+      <small>or click to select</small>
+    </div>
+    <input type="file" id="file-input" accept=".zip">
+    <div id="viewer-result"></div>
+  </div>
+</div>
+
+<script src="../_build/js/debug/build/demo/demo.js"></script>
+<script>
+  let currentFormat = '';
+  const $ = id => document.getElementById(id);
+
+  // === Tab switching ===
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
+    document.querySelectorAll('.tab')[name === 'compressor' ? 0 : 1].classList.add('active');
+  }
+
+  // === Compressor ===
+
+  function updateInputStats() {
+    const text = $('input').value;
+    const bytes = new TextEncoder().encode(text).length;
+    $('input-stats').innerHTML = `<b>${bytes}</b> bytes`;
+  }
+
+  function compress(fmt) {
+    const text = $('input').value;
+    const fn = globalThis[fmt + '_compress'];
+    const result = fn(text);
+    document.querySelectorAll('.actions button.active').forEach(b => b.classList.remove('active'));
+
+    if (result.startsWith('ok:')) {
+      const hex = result.slice(3);
+      $('output').value = hex;
+      $('output').classList.remove('error');
+      currentFormat = fmt;
+      $('format-label').textContent = `(${fmt.toUpperCase()})`;
+      $('btn-' + fmt).classList.add('active');
+      const inputBytes = new TextEncoder().encode(text).length;
+      const compressedBytes = hex.length / 2;
+      const ratio = inputBytes > 0 ? ((1 - compressedBytes / inputBytes) * 100).toFixed(1) : 0;
+      $('output-stats').innerHTML = `<b>${compressedBytes}</b> bytes &mdash; ${ratio}% reduction`;
+    } else {
+      $('output').value = result.slice(4);
+      $('output').classList.add('error');
+      $('output-stats').textContent = '';
+    }
+    updateInputStats();
+  }
+
+  function decompress() {
+    if (!currentFormat) return;
+    const hex = $('output').value.trim();
+    const fn = globalThis[currentFormat + '_decompress'];
+    const result = fn(hex);
+    if (result.startsWith('ok:')) {
+      $('input').value = result.slice(3);
+      $('output-stats').innerHTML += ' &rarr; decompressed OK';
+    } else {
+      $('output-stats').innerHTML = `<span class="error">${result.slice(4)}</span>`;
+    }
+    updateInputStats();
+  }
+
+  $('input').addEventListener('input', updateInputStats);
+
+  // === ZIP Viewer ===
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function bytesToHex(uint8) {
+    const hex = [];
+    for (let i = 0; i < uint8.length; i++) {
+      hex.push(uint8[i].toString(16).padStart(2, '0'));
+    }
+    return hex.join('');
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const uint8 = new Uint8Array(e.target.result);
+      const hex = bytesToHex(uint8);
+      const result = globalThis.unzip_list(hex);
+      renderResult(file.name, file.size, result);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function renderResult(fileName, fileSize, result) {
+    const container = $('viewer-result');
+    if (result.startsWith('err:')) {
+      container.innerHTML = `<div class="file-info"><b>${fileName}</b> (${formatSize(fileSize)})</div><div class="error">Error: ${result.slice(4)}</div>`;
+      return;
+    }
+
+    const lines = result.slice(3);
+    const entries = lines ? lines.split('\n').map(line => {
+      const [name, original, compressed, method] = line.split('\t');
+      return { name, original: +original, compressed: +compressed, method };
+    }) : [];
+
+    let totalOriginal = 0, totalCompressed = 0;
+    entries.forEach(e => { totalOriginal += e.original; totalCompressed += e.compressed; });
+
+    let html = `<div class="file-info"><b>${fileName}</b> &mdash; ${formatSize(fileSize)} &mdash; <b>${entries.length}</b> file${entries.length !== 1 ? 's' : ''}</div>`;
+
+    if (entries.length > 0) {
+      html += '<div class="tree">';
+      html += '<div class="tree-item tree-header"><span>Name</span><span class="tree-size">Original</span><span class="tree-compressed">Compressed</span><span class="tree-ratio">Ratio</span><span class="tree-method">Method</span></div>';
+
+      entries.forEach(e => {
+        const ratio = e.original > 0 ? ((1 - e.compressed / e.original) * 100).toFixed(1) + '%' : '-';
+        const parts = e.name.split('/');
+        const nameDisplay = parts.length > 1
+          ? '<span class="dir">' + parts.slice(0, -1).join('/') + '/</span>' + parts[parts.length - 1]
+          : e.name;
+
+        html += `<div class="tree-item">
+          <span class="tree-name" title="${e.name}">${nameDisplay}</span>
+          <span class="tree-size">${formatSize(e.original)}</span>
+          <span class="tree-compressed">${formatSize(e.compressed)}</span>
+          <span class="tree-ratio">${ratio}</span>
+          <span class="tree-method">${e.method}</span>
+        </div>`;
+      });
+
+      html += '</div>';
+      const totalRatio = totalOriginal > 0 ? ((1 - totalCompressed / totalOriginal) * 100).toFixed(1) + '%' : '-';
+      html += `<div class="summary">Total: <b>${formatSize(totalOriginal)}</b> original, <b>${formatSize(totalCompressed)}</b> compressed, <b>${totalRatio}</b> reduction</div>`;
+    }
+
+    container.innerHTML = html;
+  }
+
+  const dropZone = $('drop-zone');
+  const fileInput = $('file-input');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+  // === Init ===
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof globalThis.gzip_compress === 'function') {
+      $('loading').style.display = 'none';
+      $('app').style.display = 'block';
+      updateInputStats();
+    } else {
+      $('loading').textContent = 'Error: moonzip failed to load. Run "moon build --target js" first.';
+    }
+  });
+</script>
+</body>
+</html>

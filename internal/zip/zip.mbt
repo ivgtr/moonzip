@@ -549,6 +549,65 @@ pub fn zip_sync(
 }
 
 // ============================================================
+// unzip_list - List ZIP Archive Contents (no decompression)
+// ============================================================
+
+///|
+/// List all files in a ZIP archive without decompressing.
+///
+/// Parameters:
+///   data - ZIP archive data
+///
+/// Returns array of UnzipFileInfo with name, sizes, and compression method.
+pub fn unzip_list(
+  data : FixedArray[Byte],
+) -> Array[@types.UnzipFileInfo] raise @types.FlateError {
+  let sl = data.length()
+  if sl < 22 {
+    raise @types.FlateError::FlateError(@types.FlateErrorCode::InvalidZipData)
+  }
+  // Find EOCD by scanning backwards for signature 0x06054B50
+  let mut eocd_offset = -1
+  let search_start = if sl - 22 - 65535 > 0 { sl - 22 - 65535 } else { 0 }
+  for i = sl - 22; i >= search_start; i = i - 1 {
+    if @bits.b4(data, i) == 0x06054B50 {
+      eocd_offset = i
+      break
+    }
+  }
+  if eocd_offset < 0 {
+    raise @types.FlateError::FlateError(@types.FlateErrorCode::InvalidZipData)
+  }
+  // Parse EOCD
+  let entry_count = @bits.b2(data, eocd_offset + 10)
+  let cd_offset = @bits.b4(data, eocd_offset + 16)
+  // Parse central directory entries
+  let result : Array[@types.UnzipFileInfo] = []
+  let mut cd_pos = cd_offset
+  for _i = 0; _i < entry_count; _i = _i + 1 {
+    let (
+      filename,
+      compression,
+      _crc,
+      compressed_size,
+      uncompressed_size,
+      _local_header_offset,
+      entry_total_size,
+    ) = zh(data, cd_pos)
+    cd_pos = cd_pos + entry_total_size
+    result.push(
+      @types.UnzipFileInfo::{
+        name: filename,
+        size: compressed_size,
+        original_size: uncompressed_size,
+        compression,
+      },
+    )
+  }
+  result
+}
+
+// ============================================================
 // unzip_sync - Extract ZIP Archive
 // ============================================================
 

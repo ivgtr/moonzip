@@ -405,6 +405,73 @@ test "zip: 1KB data round-trip" {
   assert_true(bytes_equal(data, content))
 }
 
+// === unzip_list tests ===
+
+///|
+test "zip: unzip_list multiple files with Store and Deflate" {
+  let data1 = string_to_bytes("Hello, Store!")
+  let data2 = string_to_bytes(
+    "Hello deflate test data that should be compressed well enough",
+  )
+  let files_store : Array[(String, FixedArray[Byte])] = [
+    ("store.txt", data1),
+  ]
+  let files_deflate : Array[(String, FixedArray[Byte])] = [
+    ("deflate.txt", data2),
+  ]
+  let archive_store = @zip.zip_sync(files_store, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    level: 0,
+  })
+  let archive_deflate = @zip.zip_sync(files_deflate, opts=@types.ZipOptions::{
+    ..@types.ZipOptions::default(),
+    level: 6,
+  })
+  // Test Store archive
+  let list_store = @zip.unzip_list(archive_store)
+  assert_eq(list_store.length(), 1)
+  assert_eq(list_store[0].name, "store.txt")
+  assert_eq(list_store[0].original_size, data1.length())
+  assert_eq(list_store[0].size, data1.length())
+  assert_eq(list_store[0].compression, 0)
+  // Test Deflate archive
+  let list_deflate = @zip.unzip_list(archive_deflate)
+  assert_eq(list_deflate.length(), 1)
+  assert_eq(list_deflate[0].name, "deflate.txt")
+  assert_eq(list_deflate[0].original_size, data2.length())
+  assert_eq(list_deflate[0].compression, 8)
+  assert_true(list_deflate[0].size > 0)
+}
+
+///|
+test "zip: unzip_list multiple files in single archive" {
+  let data1 = string_to_bytes("File one")
+  let data2 = string_to_bytes("File two content")
+  let data3 = fill_bytes(b'\xAB', 100)
+  let files : Array[(String, FixedArray[Byte])] = [
+    ("a.txt", data1),
+    ("dir/b.txt", data2),
+    ("c.bin", data3),
+  ]
+  let archive = @zip.zip_sync(files)
+  let list = @zip.unzip_list(archive)
+  assert_eq(list.length(), 3)
+  assert_eq(list[0].name, "a.txt")
+  assert_eq(list[0].original_size, data1.length())
+  assert_eq(list[1].name, "dir/b.txt")
+  assert_eq(list[1].original_size, data2.length())
+  assert_eq(list[2].name, "c.bin")
+  assert_eq(list[2].original_size, data3.length())
+}
+
+///|
+test "zip: unzip_list empty archive" {
+  let files : Array[(String, FixedArray[Byte])] = []
+  let archive = @zip.zip_sync(files)
+  let list = @zip.unzip_list(archive)
+  assert_eq(list.length(), 0)
+}
+
 // === Mtime option test ===
 
 ///|
