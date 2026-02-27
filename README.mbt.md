@@ -212,6 +212,8 @@ try {
 
 ## Demo
 
+**[Online Demo](https://ivgtr.github.io/moonzip/)**
+
 ```sh
 # CLI demo
 moon run cmd/
