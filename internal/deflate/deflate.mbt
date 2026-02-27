@@ -22,18 +22,17 @@ fn grow(buf : FixedArray[Byte], new_len : Int) -> FixedArray[Byte] {
 // ============================================================
 
 ///|
-/// Core DEFLATE inflate function. Takes raw DEFLATE compressed data
-/// and decompresses it. Handles all three block types:
-///   - Type 0: Stored (uncompressed) blocks
-///   - Type 1: Fixed Huffman codes
-///   - Type 2: Dynamic Huffman codes
-pub fn inflt(
+/// Core DEFLATE inflate function that also returns the number of
+/// input bytes consumed. Used by GZIP multi-member decompression.
+///
+/// Returns (decompressed_data, bytes_consumed).
+pub fn inflt_pos(
   data : FixedArray[Byte],
   out_size_hint : Int,
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> (FixedArray[Byte], Int) raise @types.FlateError {
   let sl = data.length()
   if sl == 0 {
-    return FixedArray::make(0, b'\x00')
+    return (FixedArray::make(0, b'\x00'), 0)
   }
   // Output buffer: start with hint or reasonable default
   let initial_size = if out_size_hint > 0 { out_size_hint } else { sl * 3 }
@@ -271,16 +270,36 @@ pub fn inflt(
       )
     }
   }
+  // Calculate bytes consumed (round up bit position to next byte)
+  let bytes_consumed = (pos + 7) >> 3
   // Trim output to actual size
   if bt == buf.length() {
-    buf
+    (buf, bytes_consumed)
   } else {
     let out = FixedArray::make(bt, b'\x00')
     for i = 0; i < bt; i = i + 1 {
       out[i] = buf[i]
     }
-    out
+    (out, bytes_consumed)
   }
+}
+
+// ============================================================
+// inflt - Core DEFLATE decompression (convenience wrapper)
+// ============================================================
+
+///|
+/// Core DEFLATE inflate function. Takes raw DEFLATE compressed data
+/// and decompresses it. Handles all three block types:
+///   - Type 0: Stored (uncompressed) blocks
+///   - Type 1: Fixed Huffman codes
+///   - Type 2: Dynamic Huffman codes
+pub fn inflt(
+  data : FixedArray[Byte],
+  out_size_hint : Int,
+) -> FixedArray[Byte] raise @types.FlateError {
+  let (result, _) = inflt_pos(data, out_size_hint)
+  result
 }
 
 // ============================================================

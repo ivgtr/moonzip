@@ -7,16 +7,20 @@ A [MoonBit](https://docs.moonbitlang.com) compression library aiming for 100% co
 ### Package Structure
 
 ```
-moonzip/                  # Public API (deflateSync, inflateSync, gzipSync, etc.)
+moonzip/                  # Public API (decompress_sync)
+├── cmd/                  # CLI demo (moon run cmd/)
+├── demo/                 # Web demo (WASM exports for browser)
 ├── internal/
-│   ├── checksum/         # CRC32, Adler-32
 │   ├── bits/             # Bit-level read/write operations
-│   ├── huffman/          # Huffman tree construction and code mapping
-│   ├── lz77/             # LZ77 compression engine
+│   ├── checksum/         # CRC32, Adler-32
 │   ├── deflate/          # DEFLATE compress/decompress engine
-│   ├── gzip/             # GZIP format handling
-│   ├── zlib/             # Zlib format handling
-│   └── zip/              # ZIP archive format handling
+│   ├── gzip/             # GZIP format handling (multi-member support)
+│   ├── huffman/          # Huffman tree construction and code mapping
+│   ├── stream/           # Streaming compress/decompress wrappers
+│   ├── types/            # Shared types, options, error codes
+│   ├── utf8/             # UTF-8 string <-> bytes conversion
+│   ├── zip/              # ZIP archive format handling
+│   └── zlib/             # Zlib format handling
 ```
 
 ### Supported Formats
@@ -26,7 +30,7 @@ moonzip/                  # Public API (deflateSync, inflateSync, gzipSync, etc.
 | DEFLATE | RFC 1951 | Yes | Yes | Yes |
 | GZIP | RFC 1952 | Yes | Yes | Yes |
 | Zlib | RFC 1950 | Yes | Yes | Yes |
-| ZIP | PKZIP APPNOTE | Yes | Yes | Yes |
+| ZIP | PKZIP APPNOTE | Yes | Yes | - |
 
 ### Error Codes
 
@@ -52,7 +56,7 @@ moonzip/                  # Public API (deflateSync, inflateSync, gzipSync, etc.
 ### Testing Strategy
 
 TDD (Test-Driven Development):
-1. Write tests first (`moon check` must pass — stubs allowed)
+1. Write tests first (`moon check` must pass -- stubs allowed)
 2. Implement until all tests pass (`moon test`)
 3. Commit per task
 
@@ -64,6 +68,7 @@ moon test               # Run all tests
 moon test --update      # Update snapshots
 moon fmt                # Format code
 moon info               # Update interfaces
+moon run cmd/           # Run CLI demo
 ```
 
 ### Coding Conventions
