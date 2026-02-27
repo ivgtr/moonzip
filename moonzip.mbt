@@ -64,8 +64,9 @@ pub fn gzip_sync(
 /// Decompress GZIP data.
 pub fn gunzip_sync(
   data : FixedArray[Byte],
+  opts? : @types.InflateOptions,
 ) -> FixedArray[Byte] raise @types.FlateError {
-  @gzip.gunzip_sync(data)
+  @gzip.gunzip_sync(data, opts?)
 }
 
 ///|
@@ -81,8 +82,9 @@ pub fn zlib_sync(
 /// Decompress Zlib data.
 pub fn unzlib_sync(
   data : FixedArray[Byte],
+  opts? : @types.InflateOptions,
 ) -> FixedArray[Byte] raise @types.FlateError {
-  @zlib.unzlib_sync(data)
+  @zlib.unzlib_sync(data, opts?)
 }
 
 ///|
@@ -90,16 +92,18 @@ pub fn unzlib_sync(
 pub fn zip_sync(
   files : Array[(String, FixedArray[Byte])],
   opts? : @types.ZipOptions,
+  entry_opts? : Array[@types.ZipEntryOptions?],
 ) -> FixedArray[Byte] {
-  @zip.zip_sync(files, opts?)
+  @zip.zip_sync(files, opts?, entry_opts?)
 }
 
 ///|
 /// Extract files from a ZIP archive.
 pub fn unzip_sync(
   data : FixedArray[Byte],
+  filter? : (@types.UnzipFileInfo) -> Bool,
 ) -> Array[(String, FixedArray[Byte])] raise @types.FlateError {
-  @zip.unzip_sync(data)
+  @zip.unzip_sync(data, filter?)
 }
 
 ///|

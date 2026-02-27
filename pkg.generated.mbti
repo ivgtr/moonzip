@@ -16,7 +16,7 @@ pub fn decompress_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> Fixed
 
 pub fn deflate_sync(FixedArray[Byte], opts? : @types.DeflateOptions) -> FixedArray[Byte]
 
-pub fn gunzip_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+pub fn gunzip_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
 
 pub fn gzip_sync(FixedArray[Byte], opts? : @types.GzipOptions) -> FixedArray[Byte]
 
@@ -28,11 +28,11 @@ pub fn str_to_u8(String, latin1? : Bool) -> FixedArray[Byte]
 
 pub fn unzip_list(FixedArray[Byte]) -> Array[@types.UnzipFileInfo] raise @types.FlateError
 
-pub fn unzip_sync(FixedArray[Byte]) -> Array[(String, FixedArray[Byte])] raise @types.FlateError
+pub fn unzip_sync(FixedArray[Byte], filter? : (@types.UnzipFileInfo) -> Bool) -> Array[(String, FixedArray[Byte])] raise @types.FlateError
 
-pub fn unzlib_sync(FixedArray[Byte]) -> FixedArray[Byte] raise @types.FlateError
+pub fn unzlib_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
 
-pub fn zip_sync(Array[(String, FixedArray[Byte])], opts? : @types.ZipOptions) -> FixedArray[Byte]
+pub fn zip_sync(Array[(String, FixedArray[Byte])], opts? : @types.ZipOptions, entry_opts? : Array[@types.ZipEntryOptions?]) -> FixedArray[Byte]
 
 pub fn zlib_sync(FixedArray[Byte], opts? : @types.ZlibOptions) -> FixedArray[Byte]
 
