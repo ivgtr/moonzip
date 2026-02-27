@@ -120,7 +120,8 @@ fn freb(eb : FixedArray[Int], start : Int) -> FrebResult {
   let b : FixedArray[Int] = FixedArray::make(31, 0)
   let mut s = start
   for i = 0; i < 31; i = i + 1 {
-    s = s + (1 << eb[i])
+    let bits = if i == 0 { 0 } else { eb[i - 1] }
+    s = s + (1 << bits)
     b[i] = s
   }
   let r : FixedArray[Int] = FixedArray::make(b[30], 0)

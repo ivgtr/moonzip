@@ -737,6 +737,17 @@ test "deflate: large dictionary truncated to 32KB" {
   assert_true(bytes_equal(data, decompressed))
 }
 
+///|
+test "deflate level 6: chunked compressed ZIP world round-trip" {
+  let data = string_to_bytes("Hello, chunked compressed ZIP world!")
+  let compressed = deflate_sync(data, opts=@types.DeflateOptions::{
+    ..@types.DeflateOptions::default(),
+    level: 6,
+  })
+  let decompressed = inflate_sync(compressed)
+  assert_true(bytes_equal(data, decompressed))
+}
+
 // B-T2: Dictionary mismatch tests
 
 ///|
