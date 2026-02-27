@@ -1,0 +1,11 @@
+import {
+  "ivgtr/moonzip/internal/types",
+  "ivgtr/moonzip/internal/deflate",
+  "ivgtr/moonzip/internal/gzip",
+  "ivgtr/moonzip/internal/zlib",
+  "ivgtr/moonzip/internal/zip",
+}
+
+options(
+  "is-main": true,
+)
