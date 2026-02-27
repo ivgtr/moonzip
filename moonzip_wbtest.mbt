@@ -382,3 +382,155 @@ test "integration: cross-format decompress_sync" {
   let deflate_result = decompress_sync(deflate_compressed)
   assert_true(bytes_equal(data, deflate_result))
 }
+
+// ============================================================
+// Phase G: 互換性検証・品質保証
+// ============================================================
+
+// Helper: generate repeating text data
+
+///|
+fn generate_repeat_text(size : Int) -> FixedArray[Byte] {
+  let pattern = "The quick brown fox jumps over the lazy dog. "
+  let pat_bytes = string_to_bytes(pattern)
+  let data = FixedArray::make(size, b'\x00')
+  for i = 0; i < size; i = i + 1 {
+    data[i] = pat_bytes[i % pat_bytes.length()]
+  }
+  data
+}
+
+// Helper: simple pseudo-random number generator (xorshift32)
+
+///|
+fn pseudo_random_data(size : Int, seed : Int) -> FixedArray[Byte] {
+  let data = FixedArray::make(size, b'\x00')
+  let mut state = if seed == 0 { 1 } else { seed }
+  for i = 0; i < size; i = i + 1 {
+    state = state ^ (state << 13)
+    state = state ^ (state >> 17)
+    state = state ^ (state << 5)
+    data[i] = (state & 0xFF).to_byte()
+  }
+  data
+}
+
+// Helper: read 2-byte little-endian value from FixedArray
+
+///|
+fn read_u16_le(data : FixedArray[Byte], offset : Int) -> Int {
+  data[offset].to_int() | (data[offset + 1].to_int() << 8)
+}
+
+// Helper: read 4-byte little-endian value from FixedArray
+
+///|
+fn read_u32_le(data : FixedArray[Byte], offset : Int) -> Int {
+  data[offset].to_int() |
+  (data[offset + 1].to_int() << 8) |
+  (data[offset + 2].to_int() << 16) |
+  (data[offset + 3].to_int() << 24)
+}
+
+// ============================================================
+// G-1: ラウンドトリップ検証（全フォーマット × 全レベル）
+// ============================================================
+
+///|
+test "G1: DEFLATE round-trip all levels with varied data" {
+  let data = generate_repeat_text(2048)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    }
+    let compressed = @deflate.deflate_sync(data, opts~)
+    let decompressed = @deflate.inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "G1: GZIP round-trip all levels with varied data" {
+  let data = generate_repeat_text(2048)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.GzipOptions::{ ..@types.GzipOptions::default(), level, }
+    let compressed = @gzip.gzip_sync(data, opts~)
+    let decompressed = @gzip.gunzip_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "G1: Zlib round-trip all levels with varied data" {
+  let data = generate_repeat_text(2048)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.ZlibOptions::{ ..@types.ZlibOptions::default(), level, }
+    let compressed = @zlib.zlib_sync(data, opts~)
+    let decompressed = @zlib.unzlib_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "G1: ZIP round-trip all levels" {
+  let data = generate_repeat_text(2048)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.ZipOptions::{ ..@types.ZipOptions::default(), level, }
+    let files : Array[(String, FixedArray[Byte])] = [("test.txt", data)]
+    let archive = @zip.zip_sync(files, opts~)
+    let extracted = @zip.unzip_sync(archive)
+    assert_eq(extracted.length(), 1)
+    assert_eq(extracted[0].0, "test.txt")
+    assert_true(bytes_equal(extracted[0].1, data))
+  }
+}
+
+///|
+test "G1: DEFLATE round-trip with random data all levels" {
+  let data = pseudo_random_data(1024, 42)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.DeflateOptions::{
+      ..@types.DeflateOptions::default(),
+      level,
+    }
+    let compressed = @deflate.deflate_sync(data, opts~)
+    let decompressed = @deflate.inflate_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "G1: GZIP round-trip with random data all levels" {
+  let data = pseudo_random_data(1024, 42)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.GzipOptions::{ ..@types.GzipOptions::default(), level, }
+    let compressed = @gzip.gzip_sync(data, opts~)
+    let decompressed = @gzip.gunzip_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "G1: Zlib round-trip with random data all levels" {
+  let data = pseudo_random_data(1024, 42)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.ZlibOptions::{ ..@types.ZlibOptions::default(), level, }
+    let compressed = @zlib.zlib_sync(data, opts~)
+    let decompressed = @zlib.unzlib_sync(compressed)
+    assert_true(bytes_equal(data, decompressed))
+  }
+}
+
+///|
+test "G1: ZIP round-trip with random data all levels" {
+  let data = pseudo_random_data(1024, 42)
+  for level = 0; level <= 9; level = level + 1 {
+    let opts = @types.ZipOptions::{ ..@types.ZipOptions::default(), level, }
+    let files : Array[(String, FixedArray[Byte])] = [("rand.bin", data)]
+    let archive = @zip.zip_sync(files, opts~)
+    let extracted = @zip.unzip_sync(archive)
+    assert_eq(extracted.length(), 1)
+    assert_true(bytes_equal(extracted[0].1, data))
+  }
+}
