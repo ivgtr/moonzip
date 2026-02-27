@@ -936,3 +936,85 @@ test "zip D-5: archive comment with entry comments" {
   assert_eq(result.length(), 1)
   assert_true(bytes_equal(result[0].1, data))
 }
+
+// === utf8_to_string tests ===
+
+///|
+test "utf8_to_string: ASCII string" {
+  let data : FixedArray[Byte] = [b'\x48', b'\x65', b'\x6C', b'\x6C', b'\x6F']
+  let result = utf8_to_string(data, 0, data.length())
+  assert_eq(result, "Hello")
+}
+
+///|
+test "utf8_to_string: 2-byte UTF-8 (é)" {
+  let data : FixedArray[Byte] = [b'\xC3', b'\xA9']
+  let result = utf8_to_string(data, 0, data.length())
+  assert_eq(result, "\u{00E9}")
+}
+
+///|
+test "utf8_to_string: 3-byte UTF-8 (あ)" {
+  let data : FixedArray[Byte] = [b'\xE3', b'\x81', b'\x82']
+  let result = utf8_to_string(data, 0, data.length())
+  assert_eq(result, "\u{3042}")
+}
+
+///|
+test "utf8_to_string: 4-byte UTF-8 (𝄞)" {
+  let data : FixedArray[Byte] = [b'\xF0', b'\x9D', b'\x84', b'\x9E']
+  let result = utf8_to_string(data, 0, data.length())
+  assert_eq(result, "\u{1D11E}")
+}
+
+///|
+test "utf8_to_string: invalid 4-byte codepoint above U+10FFFF replaced with ?" {
+  // 0xF4 0x90 0x80 0x80 = U+110000 (above max)
+  let data : FixedArray[Byte] = [b'\xF4', b'\x90', b'\x80', b'\x80']
+  let result = utf8_to_string(data, 0, data.length())
+  assert_eq(result, "?")
+}
+
+///|
+test "utf8_to_string: invalid leading byte 0xFE replaced with ?" {
+  let data : FixedArray[Byte] = [b'\xFE']
+  let result = utf8_to_string(data, 0, data.length())
+  assert_eq(result, "?")
+}
+
+///|
+test "utf8_to_string: truncated sequence replaced with ?" {
+  // 3-byte start but only 1 continuation byte — each invalid byte becomes '?'
+  let data : FixedArray[Byte] = [b'\xE3', b'\x81']
+  let result = utf8_to_string(data, 0, data.length())
+  assert_eq(result, "??")
+}
+
+// === latin1_to_string tests ===
+
+///|
+test "latin1_to_string: ASCII string" {
+  let data : FixedArray[Byte] = [b'\x48', b'\x69']
+  let result = latin1_to_string(data, 0, data.length())
+  assert_eq(result, "Hi")
+}
+
+///|
+test "latin1_to_string: high byte 0xE9 decodes to é" {
+  let data : FixedArray[Byte] = [b'\xE9']
+  let result = latin1_to_string(data, 0, data.length())
+  assert_eq(result, "\u{00E9}")
+}
+
+// === Central Directory encoding round-trip tests ===
+
+///|
+test "zip round-trip: ASCII-only filename preserved regardless of encoding path" {
+  let data = string_to_bytes("content")
+  let files : Array[(String, FixedArray[Byte])] = [("readme.txt", data)]
+  let archive = zip_sync(files)
+  let result = unzip_sync(archive)
+  assert_eq(result.length(), 1)
+  assert_eq(result[0].0, "readme.txt")
+  assert_true(bytes_equal(result[0].1, data))
+}

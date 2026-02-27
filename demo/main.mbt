@@ -38,20 +38,32 @@ fn bytes_to_str(data : FixedArray[Byte]) -> String {
       i = i + 1
     } else if (b0 & 0xE0) == 0xC0 && i + 1 < len {
       let cp = ((b0 & 0x1F) << 6) | (data[i + 1].to_int() & 0x3F)
-      sb.write_char(cp.unsafe_to_char())
+      if cp >= 0x80 {
+        sb.write_char(cp.unsafe_to_char())
+      } else {
+        sb.write_char('?')
+      }
       i = i + 2
     } else if (b0 & 0xF0) == 0xE0 && i + 2 < len {
       let cp = ((b0 & 0x0F) << 12) |
         ((data[i + 1].to_int() & 0x3F) << 6) |
         (data[i + 2].to_int() & 0x3F)
-      sb.write_char(cp.unsafe_to_char())
+      if cp >= 0x800 {
+        sb.write_char(cp.unsafe_to_char())
+      } else {
+        sb.write_char('?')
+      }
       i = i + 3
     } else if (b0 & 0xF8) == 0xF0 && i + 3 < len {
       let cp = ((b0 & 0x07) << 18) |
         ((data[i + 1].to_int() & 0x3F) << 12) |
         ((data[i + 2].to_int() & 0x3F) << 6) |
         (data[i + 3].to_int() & 0x3F)
-      sb.write_char(cp.unsafe_to_char())
+      if cp >= 0x10000 && cp <= 0x10FFFF {
+        sb.write_char(cp.unsafe_to_char())
+      } else {
+        sb.write_char('?')
+      }
       i = i + 4
     } else {
       sb.write_char('?')

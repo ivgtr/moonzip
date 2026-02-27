@@ -152,34 +152,62 @@ fn utf8_to_string(
   offset : Int,
   length : Int,
 ) -> String {
-  let mut result = ""
+  let buf = StringBuilder::new()
   let mut i = offset
   let end = offset + length
   while i < end {
     let b = data[i].to_int() & 0xFF
     if b <= 0x7F {
-      result = result + b.unsafe_to_char().to_string()
+      buf.write_char(b.unsafe_to_char())
       i = i + 1
-    } else if (b & 0xE0) == 0xC0 {
+    } else if (b & 0xE0) == 0xC0 && i + 1 < end {
       let cp = ((b & 0x1F) << 6) | (data[i + 1].to_int() & 0x3F)
-      result = result + cp.unsafe_to_char().to_string()
+      if cp >= 0x80 {
+        buf.write_char(cp.unsafe_to_char())
+      } else {
+        buf.write_char('?')
+      }
       i = i + 2
-    } else if (b & 0xF0) == 0xE0 {
+    } else if (b & 0xF0) == 0xE0 && i + 2 < end {
       let cp = ((b & 0x0F) << 12) |
         ((data[i + 1].to_int() & 0x3F) << 6) |
         (data[i + 2].to_int() & 0x3F)
-      result = result + cp.unsafe_to_char().to_string()
+      if cp >= 0x800 {
+        buf.write_char(cp.unsafe_to_char())
+      } else {
+        buf.write_char('?')
+      }
       i = i + 3
-    } else {
+    } else if (b & 0xF8) == 0xF0 && i + 3 < end {
       let cp = ((b & 0x07) << 18) |
         ((data[i + 1].to_int() & 0x3F) << 12) |
         ((data[i + 2].to_int() & 0x3F) << 6) |
         (data[i + 3].to_int() & 0x3F)
-      result = result + cp.unsafe_to_char().to_string()
+      if cp >= 0x10000 && cp <= 0x10FFFF {
+        buf.write_char(cp.unsafe_to_char())
+      } else {
+        buf.write_char('?')
+      }
       i = i + 4
+    } else {
+      buf.write_char('?')
+      i = i + 1
     }
   }
-  result
+  buf.to_string()
+}
+
+///|
+fn latin1_to_string(
+  data : FixedArray[Byte],
+  offset : Int,
+  length : Int,
+) -> String {
+  let buf = StringBuilder::new()
+  for i = offset; i < offset + length; i = i + 1 {
+    buf.write_char((data[i].to_int() & 0xFF).unsafe_to_char())
+  }
+  buf.to_string()
 }
 
 // ============================================================
@@ -269,7 +297,7 @@ fn zh(data : FixedArray[Byte], offset : Int) -> CdEntry raise @types.FlateError 
   let filename = if (flags & 0x800) != 0 {
     utf8_to_string(data, offset + 46, filename_len)
   } else {
-    utf8_to_string(data, offset + 46, filename_len)
+    latin1_to_string(data, offset + 46, filename_len)
   }
   // Convert DOS date/time to Unix timestamp
   let mtime = dt(dos_date, dos_time)
@@ -292,7 +320,11 @@ fn zh(data : FixedArray[Byte], offset : Int) -> CdEntry raise @types.FlateError 
   // Decode comment
   let comment_start = extra_start + extra_len
   let comment = if comment_len > 0 {
-    utf8_to_string(data, comment_start, comment_len)
+    if (flags & 0x800) != 0 {
+      utf8_to_string(data, comment_start, comment_len)
+    } else {
+      latin1_to_string(data, comment_start, comment_len)
+    }
   } else {
     ""
   }
