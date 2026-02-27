@@ -25,19 +25,40 @@ fn grow(buf : FixedArray[Byte], new_len : Int) -> FixedArray[Byte] {
 /// Core DEFLATE inflate function that also returns the number of
 /// input bytes consumed. Used by GZIP multi-member decompression.
 ///
+/// When a dictionary is provided, it is pre-loaded into the output buffer
+/// so that back-references can reach into the dictionary data.
+/// The dictionary portion is stripped from the final output.
+///
 /// Returns (decompressed_data, bytes_consumed).
 pub fn inflt_pos(
   data : FixedArray[Byte],
   out_size_hint : Int,
+  dictionary? : FixedArray[Byte]? = None,
 ) -> (FixedArray[Byte], Int) raise @types.FlateError {
   let sl = data.length()
   if sl == 0 {
     return (FixedArray::make(0, b'\x00'), 0)
   }
+  // Dictionary: use last 32KB if provided
+  let dict_len = match dictionary {
+    Some(d) => if d.length() > 32768 { 32768 } else { d.length() }
+    None => 0
+  }
   // Output buffer: start with hint or reasonable default
-  let initial_size = if out_size_hint > 0 { out_size_hint } else { sl * 3 }
+  let base_size = if out_size_hint > 0 { out_size_hint } else { sl * 3 }
+  let initial_size = base_size + dict_len
   let mut buf = FixedArray::make(initial_size, b'\x00')
-  let mut bt = 0 // output byte position
+  // Pre-load dictionary into the beginning of the output buffer
+  match dictionary {
+    Some(d) => {
+      let d_offset = d.length() - dict_len
+      for i = 0; i < dict_len; i = i + 1 {
+        buf[i] = d[d_offset + i]
+      }
+    }
+    None => ()
+  }
+  let mut bt = dict_len // output byte position (after dictionary)
   let mut pos = 0 // bit position in input
   let mut final_block = false
   // Pre-computed fixed Huffman tables (used for type 1 blocks)
@@ -272,13 +293,14 @@ pub fn inflt_pos(
   }
   // Calculate bytes consumed (round up bit position to next byte)
   let bytes_consumed = (pos + 7) >> 3
-  // Trim output to actual size
-  if bt == buf.length() {
+  // Trim output to actual size, stripping dictionary prefix
+  let out_len = bt - dict_len
+  if out_len == buf.length() && dict_len == 0 {
     (buf, bytes_consumed)
   } else {
-    let out = FixedArray::make(bt, b'\x00')
-    for i = 0; i < bt; i = i + 1 {
-      out[i] = buf[i]
+    let out = FixedArray::make(out_len, b'\x00')
+    for i = 0; i < out_len; i = i + 1 {
+      out[i] = buf[dict_len + i]
     }
     (out, bytes_consumed)
   }
@@ -297,8 +319,9 @@ pub fn inflt_pos(
 pub fn inflt(
   data : FixedArray[Byte],
   out_size_hint : Int,
+  dictionary? : FixedArray[Byte]? = None,
 ) -> FixedArray[Byte] raise @types.FlateError {
-  let (result, _) = inflt_pos(data, out_size_hint)
+  let (result, _) = inflt_pos(data, out_size_hint, dictionary~)
   result
 }
 
@@ -741,7 +764,7 @@ pub fn inflate_sync(
     Some(s) => s
     None => 0
   }
-  inflt(data, size_hint)
+  inflt(data, size_hint, dictionary=opts.dictionary)
 }
 
 // ============================================================
@@ -765,12 +788,6 @@ pub fn deflate_sync(
   opts? : @types.DeflateOptions = @types.DeflateOptions::default(),
 ) -> FixedArray[Byte] raise @types.FlateError {
   let params = dopt(opts)
-  // TODO: dictionary support for LZ77 compression
-  match opts.dictionary {
-    Some(_) =>
-      raise @types.FlateError::FlateError(@types.FlateErrorCode::InvalidHeader)
-    None => ()
-  }
   let level = params[0]
   let dl = data.length()
   if level == 0 {
