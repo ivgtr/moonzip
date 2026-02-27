@@ -2,7 +2,7 @@
 package "ivgtr/moonzip/internal/utf8"
 
 import {
-  "ivgtr/moonzip/internal/types",
+  "ivgtr/moonzip/types",
 }
 
 // Values

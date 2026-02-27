@@ -2,7 +2,7 @@
 package "ivgtr/moonzip"
 
 import {
-  "ivgtr/moonzip/internal/types",
+  "ivgtr/moonzip/types",
 }
 
 // Values

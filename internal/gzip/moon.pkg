@@ -1,5 +1,5 @@
 import {
-  "ivgtr/moonzip/internal/types",
+  "ivgtr/moonzip/types",
   "ivgtr/moonzip/internal/deflate",
   "ivgtr/moonzip/internal/checksum",
 }
