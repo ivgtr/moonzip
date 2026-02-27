@@ -282,3 +282,203 @@ test "inflate: with size hint" {
   })
   assert_true(bytes_equal(data, decompressed))
 }
+
+// === A-T1: LZ77 unit tests ===
+
+///|
+test "find_match: detects 'abcabc' pattern (distance=3, length=3)" {
+  let data = string_to_bytes("abcabc")
+  let dl = data.length()
+  let hash_size = 1 << (4 + 8) // mem=4
+  let hsh : FixedArray[Int] = FixedArray::make(hash_size, 0)
+  let prev : FixedArray[Int] = FixedArray::make(32768, 0)
+  // Insert hashes for positions 0, 1, 2
+  for i = 0; i < 3; i = i + 1 {
+    if i + 2 < dl {
+      let h = (
+          (data[i].to_int() << 16) |
+          (data[i + 1].to_int() << 8) |
+          data[i + 2].to_int()
+        ) %
+        hash_size
+      prev[i & 32767] = hsh[h]
+      hsh[h] = i + 1 // 1-based
+    }
+  }
+  // Now find match at position 3 ("abc" should match position 0)
+  let (mlen, mdist) = find_match(data, 3, dl, hsh, prev, hash_size, 128, 258)
+  assert_eq(mlen, 3)
+  assert_eq(mdist, 3)
+}
+
+///|
+test "find_match: minimum match length is 3" {
+  // "abab" - at position 2, "ab" is only 2 bytes, should not match
+  let data = string_to_bytes("abXab")
+  let dl = data.length()
+  let hash_size = 1 << (4 + 8)
+  let hsh : FixedArray[Int] = FixedArray::make(hash_size, 0)
+  let prev : FixedArray[Int] = FixedArray::make(32768, 0)
+  // Insert hashes for positions 0, 1
+  for i = 0; i < 2; i = i + 1 {
+    if i + 2 < dl {
+      let h = (
+          (data[i].to_int() << 16) |
+          (data[i + 1].to_int() << 8) |
+          data[i + 2].to_int()
+        ) %
+        hash_size
+      prev[i & 32767] = hsh[h]
+      hsh[h] = i + 1
+    }
+  }
+  // At position 3, "abX" != "Xab" - different hash, no 3-byte match
+  // The hash of "ab" at position 3 won't match because it's different trigram
+  let (mlen, _) = find_match(data, 3, dl, hsh, prev, hash_size, 128, 258)
+  // No match because "abX" != "ab " trigram differs
+  assert_true(mlen == 0 || mlen >= 3)
+}
+
+///|
+test "find_match: max match length 258" {
+  // Create data with 300+ identical bytes
+  let data = FixedArray::make(520, b'\x41')
+  let dl = data.length()
+  let hash_size = 1 << (4 + 8)
+  let hsh : FixedArray[Int] = FixedArray::make(hash_size, 0)
+  let prev : FixedArray[Int] = FixedArray::make(32768, 0)
+  // Insert hash for position 0
+  let h0 = (
+      (data[0].to_int() << 16) | (data[1].to_int() << 8) | data[2].to_int()
+    ) %
+    hash_size
+  prev[0] = hsh[h0]
+  hsh[h0] = 1 // 1-based
+  // Find match at position 1
+  let (mlen, mdist) = find_match(data, 1, dl, hsh, prev, hash_size, 128, 258)
+  assert_eq(mlen, 258) // Capped at 258
+  assert_eq(mdist, 1)
+}
+
+///|
+test "find_match: max distance 32768" {
+  // Create data where match is at exactly distance 32768
+  let size = 32774
+  let data = FixedArray::make(size, b'\x00')
+  // Place unique pattern at position 0 and position 32768
+  data[0] = b'\x61'
+  data[1] = b'\x62'
+  data[2] = b'\x63'
+  // Make bytes after position 0's "abc" differ from position 32768's
+  data[3] = b'\xFF'
+  data[32768] = b'\x61'
+  data[32769] = b'\x62'
+  data[32770] = b'\x63'
+  data[32771] = b'\x00'
+  let dl = data.length()
+  let hash_size = 1 << (4 + 8)
+  let hsh : FixedArray[Int] = FixedArray::make(hash_size, 0)
+  let prev : FixedArray[Int] = FixedArray::make(32768, 0)
+  // Insert hash for position 0
+  let h0 = (
+      (data[0].to_int() << 16) | (data[1].to_int() << 8) | data[2].to_int()
+    ) %
+    hash_size
+  prev[0] = hsh[h0]
+  hsh[h0] = 1 // 1-based
+  // Find match at position 32768 (distance = 32768, at boundary)
+  let (mlen, mdist) = find_match(
+    data, 32768, dl, hsh, prev, hash_size, 32768, 258,
+  )
+  assert_eq(mlen, 3)
+  assert_eq(mdist, 32768)
+}
+
+///|
+test "find_match: distance > 32768 yields no match" {
+  let size = 32802
+  let data = FixedArray::make(size, b'\x00')
+  data[0] = b'\x61'
+  data[1] = b'\x62'
+  data[2] = b'\x63'
+  data[32769] = b'\x61'
+  data[32770] = b'\x62'
+  data[32771] = b'\x63'
+  let dl = data.length()
+  let hash_size = 1 << (4 + 8)
+  let hsh : FixedArray[Int] = FixedArray::make(hash_size, 0)
+  let prev : FixedArray[Int] = FixedArray::make(32768, 0)
+  // Insert hash for position 0
+  let h0 = (
+      (data[0].to_int() << 16) | (data[1].to_int() << 8) | data[2].to_int()
+    ) %
+    hash_size
+  prev[0] = hsh[h0]
+  hsh[h0] = 1
+  // Position 32769: distance = 32769 > 32768
+  let (mlen, _) = find_match(data, 32769, dl, hsh, prev, hash_size, 32768, 258)
+  assert_eq(mlen, 0)
+}
+
+///|
+test "find_match: no match with less than 3 remaining bytes" {
+  let data = string_to_bytes("ab")
+  let dl = data.length()
+  let hash_size = 1 << (4 + 8)
+  let hsh : FixedArray[Int] = FixedArray::make(hash_size, 0)
+  let prev : FixedArray[Int] = FixedArray::make(32768, 0)
+  // At position 0, only 2 bytes remain
+  let (mlen, _) = find_match(data, 0, dl, hsh, prev, hash_size, 128, 258)
+  assert_eq(mlen, 0)
+}
+
+///|
+test "find_match: longer match preferred over shorter" {
+  // "abcXabcabc" - at position 7, "abc" matches both position 0 (len=3) and position 4 (len=3)
+  let data = string_to_bytes("abcdabcdabcd")
+  let dl = data.length()
+  let hash_size = 1 << (4 + 8)
+  let hsh : FixedArray[Int] = FixedArray::make(hash_size, 0)
+  let prev : FixedArray[Int] = FixedArray::make(32768, 0)
+  // Insert hashes for positions 0-7
+  for i = 0; i < 8; i = i + 1 {
+    if i + 2 < dl {
+      let h = (
+          (data[i].to_int() << 16) |
+          (data[i + 1].to_int() << 8) |
+          data[i + 2].to_int()
+        ) %
+        hash_size
+      prev[i & 32767] = hsh[h]
+      hsh[h] = i + 1
+    }
+  }
+  // At position 8, "abcd" matches position 4 (len=4, dist=4) and position 0 (len=4, dist=8)
+  let (mlen, _) = find_match(data, 8, dl, hsh, prev, hash_size, 128, 258)
+  assert_eq(mlen, 4)
+}
+
+///|
+test "auto_mem: small data gets low mem" {
+  assert_eq(auto_mem(100, 0), 1)
+  assert_eq(auto_mem(256, 0), 1)
+}
+
+///|
+test "auto_mem: medium data gets medium mem" {
+  assert_eq(auto_mem(512, 0), 2)
+  assert_eq(auto_mem(1024, 0), 2)
+  assert_eq(auto_mem(4096, 0), 3)
+}
+
+///|
+test "auto_mem: large data gets default mem" {
+  assert_eq(auto_mem(10000, 0), 4)
+  assert_eq(auto_mem(100000, 0), 4)
+}
+
+///|
+test "auto_mem: user-specified mem is respected" {
+  assert_eq(auto_mem(100, 8), 8)
+  assert_eq(auto_mem(100000, 2), 2)
+}
