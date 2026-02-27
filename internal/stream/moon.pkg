@@ -3,4 +3,8 @@ import {
   "ivgtr/moonzip/internal/deflate",
   "ivgtr/moonzip/internal/gzip",
   "ivgtr/moonzip/internal/zlib",
+  "ivgtr/moonzip/internal/checksum",
+  "ivgtr/moonzip/internal/zip",
+  "ivgtr/moonzip/internal/bits",
+  "ivgtr/moonzip/internal/huffman",
 }
