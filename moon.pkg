@@ -3,8 +3,7 @@ import {
   "ivgtr/moonzip/internal/deflate",
   "ivgtr/moonzip/internal/gzip",
   "ivgtr/moonzip/internal/zlib",
-}
-
-import {
   "ivgtr/moonzip/internal/zip",
-} for "wbtest"
+  "ivgtr/moonzip/internal/stream",
+  "ivgtr/moonzip/internal/checksum",
+}
