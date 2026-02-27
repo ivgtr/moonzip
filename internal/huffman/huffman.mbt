@@ -29,7 +29,7 @@ pub let clim : FixedArray[Int] = [
 /// Index 16: 2 extra bits (repeat previous 3-6)
 /// Index 17: 3 extra bits (repeat zero 3-10)
 /// Index 18: 7 extra bits (repeat zero 11-138)
-let fclim : FixedArray[Int] = [
+pub let fclim : FixedArray[Int] = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7,
 ]
 
@@ -83,7 +83,7 @@ pub let flt : FixedArray[Int] = {
 ///|
 /// Fixed distance code lengths for DEFLATE (RFC 1951 section 3.2.6).
 /// All 32 distance codes use 5 bits.
-let fdt : FixedArray[Int] = {
+pub let fdt : FixedArray[Int] = {
   let t : FixedArray[Int] = FixedArray::make(32, 0)
   for i = 0; i < 32; i = i + 1 {
     t[i] = 5
@@ -259,7 +259,7 @@ pub let flrm : FixedArray[Int] = h_map(flt, 9, Reverse)
 
 ///|
 /// Fixed distance Huffman encoding map (symbol -> code).
-let fdm : FixedArray[Int] = h_map(fdt, 5, Forward)
+pub let fdm : FixedArray[Int] = h_map(fdt, 5, Forward)
 
 ///|
 /// Fixed distance Huffman decoding map (code -> symbol|length).
@@ -287,7 +287,7 @@ pub(all) struct HTreeResult {
 ///   mb - Maximum allowed bit depth (typically 15 for DEFLATE)
 ///
 /// Returns HTreeResult containing code length array and actual max bit length.
-fn h_tree(d : FixedArray[Int], mb : Int) -> HTreeResult {
+pub fn h_tree(d : FixedArray[Int], mb : Int) -> HTreeResult {
   // Collect non-zero frequency symbols
   let len = d.length()
   let mut count = 0
@@ -517,7 +517,7 @@ pub(all) struct LcResult {
 ///   c - Code length array to encode
 ///
 /// Returns LcResult with encoded output and trimmed length.
-fn lc(c : FixedArray[Int]) -> LcResult {
+pub fn lc(c : FixedArray[Int]) -> LcResult {
   let mut s = c.length()
   // Trim trailing zeros
   while s > 0 && c[s - 1] == 0 {
@@ -610,7 +610,7 @@ pub fn max_bits(a : FixedArray[Int]) -> Int {
 ///   cl - Code length table: cl[symbol] = bit length
 ///
 /// Returns the total number of bits.
-fn clen(cf : FixedArray[Int], cl : FixedArray[Int]) -> Int {
+pub fn clen(cf : FixedArray[Int], cl : FixedArray[Int]) -> Int {
   let mut l = 0
   let end = if cf.length() < cl.length() { cf.length() } else { cl.length() }
   for i = 0; i < end; i = i + 1 {
