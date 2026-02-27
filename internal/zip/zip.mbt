@@ -61,7 +61,8 @@ fn is_leap(year : Int) -> Bool {
 }
 
 ///|
-fn dt(date : Int, time : Int) -> Int {
+/// TODO: Will be exposed when unzip provides file metadata.
+pub fn dt(date : Int, time : Int) -> Int {
   let year = ((date >> 9) & 0x7F) + 1980
   let month = (date >> 5) & 0x0F
   let day = date & 0x1F

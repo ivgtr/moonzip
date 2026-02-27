@@ -618,3 +618,43 @@ fn clen(cf : FixedArray[Int], cl : FixedArray[Int]) -> Int {
   }
   l
 }
+
+// ============================================================
+// TODO: Dynamic Huffman Encoding (LZ77)
+// ============================================================
+
+///|
+/// TODO: Build dynamic Huffman encoding tables from frequency data.
+/// Compares dynamic vs fixed Huffman and returns the better encoding maps.
+/// Will be called from deflate when LZ77 compression is implemented.
+pub fn dyn_build(
+  lit_freq : FixedArray[Int],
+  dist_freq : FixedArray[Int],
+) -> (FixedArray[Int], Int, FixedArray[Int], Int) {
+  let lt = h_tree(lit_freq, 15)
+  let dt_r = h_tree(dist_freq, 15)
+  let ltc = lc(lt.t)
+  let dtc = lc(dt_r.t)
+  let dyn_bits = clen(lit_freq, lt.t) + clen(dist_freq, dt_r.t)
+  let fixed_bits = clen(lit_freq, flt) + clen(dist_freq, fdt)
+  // Estimate code length header overhead
+  let mut hdr_bits = 14 // HLIT(5) + HDIST(5) + HCLEN(4)
+  for i = 0; i < ltc.c.length(); i = i + 1 {
+    hdr_bits = hdr_bits + 3 + fclim[ltc.c[i] & 31]
+  }
+  for i = 0; i < dtc.c.length(); i = i + 1 {
+    hdr_bits = hdr_bits + 3 + fclim[dtc.c[i] & 31]
+  }
+  if dyn_bits + hdr_bits < fixed_bits {
+    (h_map(lt.t, lt.l, Forward), lt.l, h_map(dt_r.t, dt_r.l, Forward), dt_r.l)
+  } else {
+    (flm, 9, fdm, 5)
+  }
+}
+
+///|
+/// TODO: Encode LZ77 length-distance pair to DEFLATE code indices.
+/// Will be used by deflate for LZ77 match encoding.
+pub fn enc_pair(length : Int, distance : Int) -> (Int, Int) {
+  (revfl[length], revfd[distance])
+}

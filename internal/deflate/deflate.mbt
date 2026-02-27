@@ -450,6 +450,12 @@ pub fn deflate_sync(
   opts? : @types.DeflateOptions = @types.DeflateOptions::default(),
 ) -> FixedArray[Byte] raise @types.FlateError {
   let params = dopt(opts)
+  // TODO: dictionary support for LZ77 compression
+  match opts.dictionary {
+    Some(_) =>
+      raise @types.FlateError::FlateError(@types.FlateErrorCode::InvalidHeader)
+    None => ()
+  }
   let level = params[0]
   let dl = data.length()
   if level == 0 {

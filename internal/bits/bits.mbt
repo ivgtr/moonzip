@@ -100,7 +100,8 @@ pub fn b4(data : FixedArray[Byte], offset : Int) -> Int {
 
 ///|
 /// Read an 8-byte little-endian unsigned integer (for ZIP64).
-fn b8(data : FixedArray[Byte], offset : Int) -> Int64 {
+/// TODO: Will be used by zip package for ZIP64 extended information.
+pub fn b8(data : FixedArray[Byte], offset : Int) -> Int64 {
   let lo = b4(data, offset).to_int64() & 0xFFFFFFFFL
   let hi = b4(data, offset + 4).to_int64() & 0xFFFFFFFFL
   lo | (hi << 32)

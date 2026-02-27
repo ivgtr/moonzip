@@ -4,6 +4,10 @@ package "ivgtr/moonzip/internal/huffman"
 // Values
 pub let clim : FixedArray[Int]
 
+pub fn dyn_build(FixedArray[Int], FixedArray[Int]) -> (FixedArray[Int], Int, FixedArray[Int], Int)
+
+pub fn enc_pair(Int, Int) -> (Int, Int)
+
 pub let fd : FixedArray[Int]
 
 pub let fdeb : FixedArray[Int]
