@@ -140,20 +140,16 @@ pub fn set_level(level_str : String) -> String {
 ///|
 pub fn gzip_compress(input : String) -> String {
   let data = str_to_bytes(input)
-  try {
-    let opts : @types.GzipOptions = {
-      level: demo_state.level,
-      mem: 4,
-      mtime: None,
-      filename: None,
-      comment: None,
-      extra: None,
-    }
-    let compressed = @gzip.gzip_sync(data, opts~)
-    "ok:" + bytes_to_hex(compressed)
-  } catch {
-    @types.FlateError(e) => "err:" + e.to_string()
+  let opts : @types.GzipOptions = {
+    level: demo_state.level,
+    mem: 4,
+    mtime: None,
+    filename: None,
+    comment: None,
+    extra: None,
   }
+  let compressed = @gzip.gzip_sync(data, opts~)
+  "ok:" + bytes_to_hex(compressed)
 }
 
 ///|
@@ -170,17 +166,13 @@ pub fn gzip_decompress(hex_input : String) -> String {
 ///|
 pub fn zlib_compress(input : String) -> String {
   let data = str_to_bytes(input)
-  try {
-    let opts : @types.ZlibOptions = {
-      level: demo_state.level,
-      mem: 4,
-      dictionary: None,
-    }
-    let compressed = @zlib.zlib_sync(data, opts~)
-    "ok:" + bytes_to_hex(compressed)
-  } catch {
-    @types.FlateError(e) => "err:" + e.to_string()
+  let opts : @types.ZlibOptions = {
+    level: demo_state.level,
+    mem: 4,
+    dictionary: None,
   }
+  let compressed = @zlib.zlib_sync(data, opts~)
+  "ok:" + bytes_to_hex(compressed)
 }
 
 ///|
@@ -197,17 +189,13 @@ pub fn zlib_decompress(hex_input : String) -> String {
 ///|
 pub fn deflate_compress(input : String) -> String {
   let data = str_to_bytes(input)
-  try {
-    let opts : @types.DeflateOptions = {
-      level: demo_state.level,
-      mem: 4,
-      dictionary: None,
-    }
-    let compressed = @deflate.deflate_sync(data, opts~)
-    "ok:" + bytes_to_hex(compressed)
-  } catch {
-    @types.FlateError(e) => "err:" + e.to_string()
+  let opts : @types.DeflateOptions = {
+    level: demo_state.level,
+    mem: 4,
+    dictionary: None,
   }
+  let compressed = @deflate.deflate_sync(data, opts~)
+  "ok:" + bytes_to_hex(compressed)
 }
 
 ///|
@@ -323,21 +311,16 @@ pub fn zip_build() -> String {
     files.push((name, str_to_bytes(content)))
     i = i + 1
   }
-  try {
-    let opts : @types.ZipOptions = {
-      level: demo_state.level,
-      mtime: None,
-      comment: None,
-    }
-    let result = @zip.zip_sync(files, opts~)
-    // clear entries after successful build
-    while zip_entries.length() > 0 {
-      let _ = zip_entries.pop()
-    }
-    "ok:" + bytes_to_hex(result)
-  } catch {
-    @types.FlateError(e) => "err:" + e.to_string()
+  let opts : @types.ZipOptions = {
+    level: demo_state.level,
+    mtime: None,
+    comment: None,
   }
+  let result = @zip.zip_sync(files, opts~)
+  while zip_entries.length() > 0 {
+    let _ = zip_entries.pop()
+  }
+  "ok:" + bytes_to_hex(result)
 }
 
 ///|

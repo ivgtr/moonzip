@@ -42,7 +42,7 @@ fn zlh_dict(level : Int, dictionary : FixedArray[Byte]?) -> FixedArray[Byte] {
 pub fn zlib_sync(
   data : FixedArray[Byte],
   opts? : @types.ZlibOptions = @types.ZlibOptions::default(),
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   let level = opts.level
   let header = zlh_dict(level, opts.dictionary)
   let deflate_opts : @types.DeflateOptions = {

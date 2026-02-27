@@ -37,7 +37,7 @@ pub struct DeflateStream {
   mem : Int
   ondata : ((FixedArray[Byte], Bool) -> Unit)?
 }
-pub fn DeflateStream::flush(Self) -> Unit raise @types.FlateError
+pub fn DeflateStream::flush(Self) -> Unit
 pub fn DeflateStream::new(level? : Int, mem? : Int, ondata? : ((FixedArray[Byte], Bool) -> Unit)?) -> Self
 pub fn DeflateStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
 pub fn DeflateStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
@@ -69,7 +69,7 @@ pub struct GzipStream {
   mem : Int
   ondata : ((FixedArray[Byte], Bool) -> Unit)?
 }
-pub fn GzipStream::flush(Self) -> Unit raise @types.FlateError
+pub fn GzipStream::flush(Self) -> Unit
 pub fn GzipStream::new(level? : Int, mem? : Int, ondata? : ((FixedArray[Byte], Bool) -> Unit)?) -> Self
 pub fn GzipStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
 pub fn GzipStream::result(Self) -> FixedArray[Byte] raise @types.FlateError
@@ -158,7 +158,7 @@ pub struct ZlibStream {
   mem : Int
   ondata : ((FixedArray[Byte], Bool) -> Unit)?
 }
-pub fn ZlibStream::flush(Self) -> Unit raise @types.FlateError
+pub fn ZlibStream::flush(Self) -> Unit
 pub fn ZlibStream::new(level? : Int, mem? : Int, ondata? : ((FixedArray[Byte], Bool) -> Unit)?) -> Self
 pub fn ZlibStream::push(Self, FixedArray[Byte], Bool) -> Unit raise @types.FlateError
 pub fn ZlibStream::result(Self) -> FixedArray[Byte] raise @types.FlateError

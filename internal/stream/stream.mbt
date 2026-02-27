@@ -91,7 +91,7 @@ pub fn DeflateStream::result(
 ///|
 pub fn DeflateStream::flush(
   self : DeflateStream,
-) -> Unit raise @types.FlateError {
+) -> Unit {
   if self.finished {
     return
   }
@@ -251,7 +251,7 @@ pub fn GzipStream::result(
 }
 
 ///|
-pub fn GzipStream::flush(self : GzipStream) -> Unit raise @types.FlateError {
+pub fn GzipStream::flush(self : GzipStream) -> Unit {
   if self.finished {
     return
   }
@@ -664,7 +664,7 @@ pub fn ZlibStream::result(
 }
 
 ///|
-pub fn ZlibStream::flush(self : ZlibStream) -> Unit raise @types.FlateError {
+pub fn ZlibStream::flush(self : ZlibStream) -> Unit {
   if self.finished {
     return
   }

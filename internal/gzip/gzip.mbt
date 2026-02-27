@@ -213,7 +213,7 @@ fn gzl_at(
 pub fn gzip_sync(
   data : FixedArray[Byte],
   opts? : @types.GzipOptions = @types.GzipOptions::default(),
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   // Calculate header size
   let mut header_size = 10
   match opts.extra {

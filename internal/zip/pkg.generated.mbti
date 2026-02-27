@@ -14,7 +14,7 @@ pub fn unzip_sync(FixedArray[Byte], filter? : (@types.UnzipFileInfo) -> Bool) ->
 
 pub fn zip_comment(FixedArray[Byte]) -> String raise @types.FlateError
 
-pub fn zip_sync(Array[(String, FixedArray[Byte])], opts? : @types.ZipOptions, entry_opts? : Array[@types.ZipEntryOptions?]) -> FixedArray[Byte] raise @types.FlateError
+pub fn zip_sync(Array[(String, FixedArray[Byte])], opts? : @types.ZipOptions, entry_opts? : Array[@types.ZipEntryOptions?]) -> FixedArray[Byte]
 
 // Errors
 

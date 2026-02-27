@@ -4,7 +4,7 @@
 pub fn compress_sync(
   data : FixedArray[Byte],
   opts? : @types.GzipOptions = @types.GzipOptions::default(),
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   @gzip.gzip_sync(data, opts~)
 }
 
@@ -38,7 +38,7 @@ pub fn decompress_sync(
 pub fn deflate_sync(
   data : FixedArray[Byte],
   opts? : @types.DeflateOptions,
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   @deflate.deflate_sync(data, opts?)
 }
 
@@ -56,7 +56,7 @@ pub fn inflate_sync(
 pub fn gzip_sync(
   data : FixedArray[Byte],
   opts? : @types.GzipOptions,
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   @gzip.gzip_sync(data, opts?)
 }
 
@@ -73,7 +73,7 @@ pub fn gunzip_sync(
 pub fn zlib_sync(
   data : FixedArray[Byte],
   opts? : @types.ZlibOptions,
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   @zlib.zlib_sync(data, opts?)
 }
 
@@ -90,7 +90,7 @@ pub fn unzlib_sync(
 pub fn zip_sync(
   files : Array[(String, FixedArray[Byte])],
   opts? : @types.ZipOptions,
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   @zip.zip_sync(files, opts?)
 }
 

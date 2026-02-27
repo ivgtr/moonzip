@@ -786,7 +786,7 @@ pub fn inflate_sync(
 pub fn deflate_sync(
   data : FixedArray[Byte],
   opts? : @types.DeflateOptions = @types.DeflateOptions::default(),
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   let params = dopt(opts)
   let level = params[0]
   let dl = data.length()

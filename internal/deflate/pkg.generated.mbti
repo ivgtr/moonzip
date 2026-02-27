@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn deflate_sync(FixedArray[Byte], opts? : @types.DeflateOptions) -> FixedArray[Byte] raise @types.FlateError
+pub fn deflate_sync(FixedArray[Byte], opts? : @types.DeflateOptions) -> FixedArray[Byte]
 
 pub fn inflate_sync(FixedArray[Byte], opts? : @types.InflateOptions) -> FixedArray[Byte] raise @types.FlateError
 

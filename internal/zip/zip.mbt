@@ -459,7 +459,7 @@ pub fn zip_sync(
   files : Array[(String, FixedArray[Byte])],
   opts? : @types.ZipOptions = @types.ZipOptions::default(),
   entry_opts? : Array[@types.ZipEntryOptions?],
-) -> FixedArray[Byte] raise @types.FlateError {
+) -> FixedArray[Byte] {
   let default_level = opts.level
   let default_mtime = match opts.mtime {
     Some(m) => m
