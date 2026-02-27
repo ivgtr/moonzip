@@ -101,25 +101,25 @@ fn gzh(out : FixedArray[Byte], opts : @types.GzipOptions) -> Int {
 // ============================================================
 
 ///|
-/// Parse GZIP header and return the byte offset where the DEFLATE
-/// compressed data begins.
-fn gzs(data : FixedArray[Byte]) -> Int raise @types.FlateError {
+/// Parse GZIP header starting at the given offset and return the byte
+/// offset where the DEFLATE compressed data begins.
+fn gzs_at(data : FixedArray[Byte], offset : Int) -> Int raise @types.FlateError {
   let sl = data.length()
-  if sl < 10 {
+  if offset + 10 > sl {
     raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
   }
   // Validate magic number
-  if data[0] != b'\x1F' || data[1] != b'\x8B' {
+  if data[offset] != b'\x1F' || data[offset + 1] != b'\x8B' {
     raise @types.FlateError::FlateError(@types.FlateErrorCode::InvalidHeader)
   }
   // Validate CM = 8
-  if data[2] != b'\x08' {
+  if data[offset + 2] != b'\x08' {
     raise @types.FlateError::FlateError(
       @types.FlateErrorCode::UnknownCompressionMethod,
     )
   }
-  let flg = data[3].to_int()
-  let mut pos = 10
+  let flg = data[offset + 3].to_int()
+  let mut pos = offset + 10
   // FEXTRA (bit 2)
   if (flg & 0x04) != 0 {
     if pos + 2 > sl {
@@ -166,23 +166,22 @@ fn gzs(data : FixedArray[Byte]) -> Int raise @types.FlateError {
 // ============================================================
 
 ///|
-/// Verify the GZIP footer (CRC32 and ISIZE) against the decompressed data.
-/// The footer is the last 8 bytes of the GZIP data.
-fn gzl(
+/// Verify the GZIP footer (CRC32 and ISIZE) at the given position.
+/// Returns nothing on success, raises on mismatch.
+fn gzl_at(
   data : FixedArray[Byte],
+  footer_start : Int,
   decompressed : FixedArray[Byte],
 ) -> Unit raise @types.FlateError {
-  let sl = data.length()
-  if sl < 8 {
+  if footer_start + 8 > data.length() {
     raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
   }
-  // Read CRC32 from footer (last 8 bytes, first 4 are CRC32 LE)
-  let footer_start = sl - 8
+  // Read CRC32 from footer (4 bytes LE)
   let expected_crc = data[footer_start].to_int().reinterpret_as_uint() |
     (data[footer_start + 1].to_int().reinterpret_as_uint() << 8) |
     (data[footer_start + 2].to_int().reinterpret_as_uint() << 16) |
     (data[footer_start + 3].to_int().reinterpret_as_uint() << 24)
-  // Read ISIZE from footer (last 4 bytes, LE)
+  // Read ISIZE from footer (4 bytes LE)
   let expected_isize = data[footer_start + 4].to_int() |
     (data[footer_start + 5].to_int() << 8) |
     (data[footer_start + 6].to_int() << 16) |
@@ -280,30 +279,59 @@ pub fn gzip_sync(
 
 ///|
 /// Decompress GZIP formatted data (RFC 1952).
+/// Supports concatenated multi-member GZIP streams per RFC 1952 section 2.2.
 ///
 /// Parameters:
-///   data - GZIP compressed data
+///   data - GZIP compressed data (may contain multiple members)
 ///
-/// Returns decompressed data.
+/// Returns decompressed data (all members concatenated).
 pub fn gunzip_sync(
   data : FixedArray[Byte],
 ) -> FixedArray[Byte] raise @types.FlateError {
-  // Parse header to find DEFLATE data start
-  let deflate_start = gzs(data)
-  // The DEFLATE data ends 8 bytes before the end (footer)
-  let deflate_end = data.length() - 8
-  if deflate_end < deflate_start {
-    raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
+  let sl = data.length()
+  let parts : Array[FixedArray[Byte]] = []
+  let mut total_len = 0
+  let mut offset = 0
+  while offset < sl {
+    // Check for GZIP magic number at current offset
+    if offset + 10 > sl {
+      raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
+    }
+    // Parse header to find DEFLATE data start
+    let deflate_start = gzs_at(data, offset)
+    // Extract DEFLATE data from current offset to end of input
+    let remaining_len = sl - deflate_start
+    let deflate_data = FixedArray::make(remaining_len, b'\x00')
+    for i = 0; i < remaining_len; i = i + 1 {
+      deflate_data[i] = data[deflate_start + i]
+    }
+    // Decompress and get consumed byte count
+    let (decompressed, bytes_consumed) = @deflate.inflt_pos(deflate_data, 0)
+    // Footer position: right after the consumed DEFLATE data
+    let footer_pos = deflate_start + bytes_consumed
+    if footer_pos + 8 > sl {
+      raise @types.FlateError::FlateError(@types.FlateErrorCode::UnexpectedEOF)
+    }
+    // Verify CRC32 and ISIZE for this member
+    gzl_at(data, footer_pos, decompressed)
+    // Accumulate result
+    parts.push(decompressed)
+    total_len = total_len + decompressed.length()
+    // Move to next member (footer is 8 bytes)
+    offset = footer_pos + 8
   }
-  // Extract DEFLATE data
-  let deflate_len = deflate_end - deflate_start
-  let deflate_data = FixedArray::make(deflate_len, b'\x00')
-  for i = 0; i < deflate_len; i = i + 1 {
-    deflate_data[i] = data[deflate_start + i]
+  // Concatenate all parts
+  if parts.length() == 1 {
+    parts[0]
+  } else {
+    let result = FixedArray::make(total_len, b'\x00')
+    let mut pos = 0
+    for part in parts {
+      for i = 0; i < part.length(); i = i + 1 {
+        result[pos + i] = part[i]
+      }
+      pos = pos + part.length()
+    }
+    result
   }
-  // Decompress
-  let decompressed = @deflate.inflate_sync(deflate_data)
-  // Verify footer
-  gzl(data, decompressed)
-  decompressed
 }

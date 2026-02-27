@@ -274,12 +274,115 @@ test "gzip: ISIZE mismatch error" {
   assert_true(got_error)
 }
 
+// === Multi-member GZIP tests ===
+
+///|
+fn concat_bytes(a : FixedArray[Byte], b : FixedArray[Byte]) -> FixedArray[Byte] {
+  let result = FixedArray::make(a.length() + b.length(), b'\x00')
+  for i = 0; i < a.length(); i = i + 1 {
+    result[i] = a[i]
+  }
+  for i = 0; i < b.length(); i = i + 1 {
+    result[a.length() + i] = b[i]
+  }
+  result
+}
+
+///|
+test "gzip: multi-member two members round-trip" {
+  let data1 = string_to_bytes("Hello")
+  let data2 = string_to_bytes(" World")
+  let gz1 = @gzip.gzip_sync(data1)
+  let gz2 = @gzip.gzip_sync(data2)
+  let multi = concat_bytes(gz1, gz2)
+  let decompressed = @gzip.gunzip_sync(multi)
+  let expected = concat_bytes(data1, data2)
+  assert_true(bytes_equal(decompressed, expected))
+}
+
+///|
+test "gzip: multi-member three members round-trip" {
+  let data1 = string_to_bytes("AAA")
+  let data2 = string_to_bytes("BBB")
+  let data3 = string_to_bytes("CCC")
+  let gz1 = @gzip.gzip_sync(data1)
+  let gz2 = @gzip.gzip_sync(data2)
+  let gz3 = @gzip.gzip_sync(data3)
+  let multi = concat_bytes(concat_bytes(gz1, gz2), gz3)
+  let decompressed = @gzip.gunzip_sync(multi)
+  let expected = string_to_bytes("AAABBBCCC")
+  assert_true(bytes_equal(decompressed, expected))
+}
+
+///|
+test "gzip: multi-member with empty first member" {
+  let data1 : FixedArray[Byte] = []
+  let data2 = string_to_bytes("data")
+  let gz1 = @gzip.gzip_sync(data1)
+  let gz2 = @gzip.gzip_sync(data2)
+  let multi = concat_bytes(gz1, gz2)
+  let decompressed = @gzip.gunzip_sync(multi)
+  assert_true(bytes_equal(decompressed, data2))
+}
+
+///|
+test "gzip: multi-member with empty second member" {
+  let data1 = string_to_bytes("data")
+  let data2 : FixedArray[Byte] = []
+  let gz1 = @gzip.gzip_sync(data1)
+  let gz2 = @gzip.gzip_sync(data2)
+  let multi = concat_bytes(gz1, gz2)
+  let decompressed = @gzip.gunzip_sync(multi)
+  assert_true(bytes_equal(decompressed, data1))
+}
+
+///|
+test "gzip: multi-member each member CRC32/ISIZE verified" {
+  let data1 = string_to_bytes("First member data")
+  let data2 = string_to_bytes("Second member data")
+  let gz1 = @gzip.gzip_sync(data1)
+  let gz2 = @gzip.gzip_sync(data2)
+  // Tamper with CRC32 of first member (byte at offset len-8 from member1 end)
+  let gz1_bad = FixedArray::make(gz1.length(), b'\x00')
+  for i = 0; i < gz1.length(); i = i + 1 {
+    gz1_bad[i] = gz1[i]
+  }
+  let crc_pos = gz1_bad.length() - 8
+  gz1_bad[crc_pos] = ((gz1_bad[crc_pos].to_int() + 1) & 0xFF).to_byte()
+  let multi_bad = concat_bytes(gz1_bad, gz2)
+  let mut got_error = false
+  try {
+    let _ = @gzip.gunzip_sync(multi_bad)
+  } catch {
+    @types.FlateError(_) => got_error = true
+  }
+  assert_true(got_error)
+}
+
+///|
+test "gzip: multi-member with different compression levels" {
+  let data1 = string_to_bytes("Level 0 data")
+  let data2 = string_to_bytes("Level 9 data")
+  let gz1 = @gzip.gzip_sync(data1, opts=@types.GzipOptions::{
+    ..@types.GzipOptions::default(),
+    level: 0,
+  })
+  let gz2 = @gzip.gzip_sync(data2, opts=@types.GzipOptions::{
+    ..@types.GzipOptions::default(),
+    level: 9,
+  })
+  let multi = concat_bytes(gz1, gz2)
+  let decompressed = @gzip.gunzip_sync(multi)
+  let expected = concat_bytes(data1, data2)
+  assert_true(bytes_equal(decompressed, expected))
+}
+
 ///|
 test "gzip: error on too short data (deflate_end < deflate_start)" {
   // Valid 10-byte header but not enough for 8-byte footer
   let data : FixedArray[Byte] = [
-    b'\x1F', b'\x8B', b'\x08', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00',
-    b'\x00', b'\xFF', b'\x00', b'\x00',
+    b'\x1F', b'\x8B', b'\x08', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00', b'\x00',
+    b'\xFF', b'\x00', b'\x00',
   ]
   let mut got_error = false
   try {
